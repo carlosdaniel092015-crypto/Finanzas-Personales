@@ -33,5 +33,9 @@
   },
   "devDependencies": {
     "react-scripts": "5.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
   }
 }
