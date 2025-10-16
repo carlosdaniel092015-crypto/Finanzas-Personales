@@ -6,13 +6,13 @@ import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBeNHyzX5bJoNccS9BWrVJ8oBjAQ4oEVxk",
-  authDomain: "finanzas-e77d6.firebaseapp.com",
-  projectId: "finanzas-e77d6",
-  storageBucket: "finanzas-e77d6.firebasestorage.app",
-  messagingSenderId: "687649991953",
-  appId: "1:687649991953:web:ac9aa7bfcdc83fe3c030b0",
-  measurementId: "G-9KBGC2PJPN"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyBeNHyzX5bJoNccS9BWrVJ8oBjAQ4oEVxk",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "finanzas-e77d6.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "finanzas-e77d6",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "finanzas-e77d6.firebasestorage.app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "687649991953",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:687649991953:web:ac9aa7bfcdc83fe3c030b0",
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-9KBGC2PJPN"
 };
 
 // Initialize Firebase
