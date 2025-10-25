@@ -227,10 +227,19 @@ export default function FinanceTracker() {
       return;
     }
 
+    // Limpiar el monto y convertir a número
+    const cleanAmount = savingAmount.replace(/,/g, '').replace(/[^\d.]/g, '');
+    const numericAmount = parseFloat(cleanAmount);
+
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      alert('Por favor ingresa un monto válido mayor a 0');
+      return;
+    }
+
     try {
       await addDoc(collection(db, 'savings'), {
         name: savingName,
-        amount: parseFloat(savingAmount.replace(/,/g, '')),
+        amount: numericAmount,
         date: savingDate,
         addedBy: currentUser.email,
         createdAt: new Date()
@@ -239,9 +248,10 @@ export default function FinanceTracker() {
       setSavingName('');
       setSavingAmount('');
       setSavingDate(new Date().toISOString().split('T')[0]);
+      alert('Ahorro agregado exitosamente');
     } catch (error) {
       console.error('Error al agregar ahorro:', error);
-      alert('Error al agregar el ahorro');
+      alert('Error al agregar el ahorro: ' + error.message);
     }
   };
 
@@ -298,16 +308,26 @@ export default function FinanceTracker() {
   const handleAmountInput = (value) => {
     // Remover todo excepto números y punto decimal
     const cleaned = value.replace(/[^\d.]/g, '');
+    
     // Limitar a un solo punto decimal
     const parts = cleaned.split('.');
-    if (parts.length > 2) return;
-    
-    // Formatear con comas
-    if (parts[0]) {
-      parts[0] = parseInt(parts[0]).toLocaleString('en-US');
+    if (parts.length > 2) {
+      return;
     }
     
-    setSavingAmount(parts.join('.'));
+    // Formatear solo la parte entera con comas
+    let formatted = parts[0];
+    if (formatted) {
+      // Agregar comas cada 3 dígitos
+      formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    
+    // Si hay decimales, agregarlos
+    if (parts.length === 2) {
+      formatted = formatted + '.' + parts[1].slice(0, 2); // Limitar a 2 decimales
+    }
+    
+    setSavingAmount(formatted);
   };
 
   const filterTransactionsByDate = () => {
