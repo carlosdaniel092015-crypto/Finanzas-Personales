@@ -534,7 +534,7 @@ export default function FinanceTracker() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-green-100 text-sm">Total Ingresos</p>
-                    <p className="text-3xl font-bold">${totalIngresos.toFixed(2)}</p>
+                    <p className="text-3xl font-bold">${formatCurrency(totalIngresos)}</p>
                   </div>
                   <TrendingUp className="w-12 h-12 text-green-200" />
                 </div>
@@ -543,7 +543,7 @@ export default function FinanceTracker() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-red-100 text-sm">Total Gastos</p>
-                    <p className="text-3xl font-bold">${totalGastos.toFixed(2)}</p>
+                    <p className="text-3xl font-bold">${formatCurrency(totalGastos)}</p>
                   </div>
                   <TrendingDown className="w-12 h-12 text-red-200" />
                 </div>
@@ -552,10 +552,99 @@ export default function FinanceTracker() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-blue-100 text-sm">Balance</p>
-                    <p className="text-3xl font-bold">${balance.toFixed(2)}</p>
+                    <p className="text-3xl font-bold">${formatCurrency(balance)}</p>
                   </div>
                   <DollarSign className="w-12 h-12 text-blue-200" />
                 </div>
+              </div>
+            </div>
+
+            {/* Dashboard Adicional de Finanzas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-yellow-500">
+                <p className="text-gray-600 text-sm mb-1">Gastos Pendientes</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  ${formatCurrency(
+                    filteredTransactions
+                      .filter(t => t.type === 'gasto' && t.status === 'pendiente')
+                      .reduce((sum, t) => sum + t.amount, 0)
+                  )}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pendiente').length} pendientes
+                </p>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
+                <p className="text-gray-600 text-sm mb-1">Gastos Pagados</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ${formatCurrency(totalGastos)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pagado').length} pagados
+                </p>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
+                <p className="text-gray-600 text-sm mb-1">Total Transacciones</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {filteredTransactions.length}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {filteredTransactions.filter(t => t.type === 'ingreso').length} ingresos / {filteredTransactions.filter(t => t.type === 'gasto').length} gastos
+                </p>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-500">
+                <p className="text-gray-600 text-sm mb-1">Promedio Diario</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  ${formatCurrency(
+                    dateFilter === 'mes' ? totalGastos / 30 :
+                    dateFilter === 'ano' ? totalGastos / 365 :
+                    totalGastos
+                  )}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Gasto promedio</p>
+              </div>
+            </div>
+
+            {/* Gráfico de categorías más gastadas */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Top 5 Categorías de Gastos</h3>
+              <div className="space-y-3">
+                {(() => {
+                  const categoryTotals = {};
+                  filteredTransactions
+                    .filter(t => t.type === 'gasto' && t.status === 'pagado')
+                    .forEach(t => {
+                      categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                    });
+                  
+                  const sortedCategories = Object.entries(categoryTotals)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5);
+
+                  const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                  return sortedCategories.length > 0 ? (
+                    sortedCategories.map(([category, amount]) => (
+                      <div key={category} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-semibold text-gray-700">{category}</span>
+                          <span className="text-gray-600">${formatCurrency(amount)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-red-500 to-red-600 h-2 rounded-full"
+                            style={{ width: `${(amount / maxAmount) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No hay datos de gastos</p>
+                  );
+                })()}
               </div>
             </div>
 
