@@ -1,38 +1,22 @@
-// ARCHIVO: src/App.js
-// Este es el código completo y funcional con todas las características
-
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Trash2, DollarSign, LogOut, User, Wallet, PiggyBank } from 'lucide-react';
-import { auth, db } from './firebase';
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut,
-  onAuthStateChanged 
-} from 'firebase/auth';
-import { 
-  collection, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  updateDoc, 
-  query, 
-  where, 
-  onSnapshot,
-  getDocs 
-} from 'firebase/firestore';
+
+// Estilos globales para ocultar scrollbar
+const styles = `
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+`;
 
 export default function FinanceTracker() {
-  // Estados de autenticación
-  const [currentUser, setCurrentUser] = useState(null);
-  const [showLogin, setShowLogin] = useState(true);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [registerForm, setRegisterForm] = useState({ email: '', password: '', confirmPassword: '' });
-  const [loginError, setLoginError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState({ uid: 'demo-user', email: 'demo@example.com' });
+  const [showLogin, setShowLogin] = useState(false);
+  const [loading, setLoading] = useState(false);
   
-  // Estados de transacciones
   const [transactions, setTransactions] = useState([]);
   const [transactionType, setTransactionType] = useState('gasto');
   const [amount, setAmount] = useState('');
@@ -42,27 +26,22 @@ export default function FinanceTracker() {
   const [dateFilter, setDateFilter] = useState('mes');
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // Estados de ahorros
   const [savings, setSavings] = useState([]);
   const [savingName, setSavingName] = useState('');
   const [savingAmount, setSavingAmount] = useState('');
   const [savingDate, setSavingDate] = useState(new Date().toISOString().split('T')[0]);
-  const [showSavingsModule, setShowSavingsModule] = useState(false);
+  const [showSavingsModule] = useState(true);
   const [activeTab, setActiveTab] = useState('finanzas');
 
-  // Estados de recordatorios
   const [reminders, setReminders] = useState([]);
   const [reminderName, setReminderName] = useState('');
   const [reminderAmount, setReminderAmount] = useState('');
   const [reminderDueDate, setReminderDueDate] = useState('');
   const [reminderCategory, setReminderCategory] = useState('');
   const [reminderFrequency, setReminderFrequency] = useState('unica');
-  const [showRemindersModule, setShowRemindersModule] = useState(false);
+  const [showRemindersModule] = useState(true);
   const [reminderFilter, setReminderFilter] = useState('todos');
 
-  // Constantes
-  const AUTHORIZED_EMAILS = ['carlosdaniel092015@gmail.com', 'stephanymartinezjaquez30@gmail.com'];
-  const REMINDERS_AUTHORIZED_EMAIL = 'carlosdaniel092015@gmail.com';
   const ANNUAL_RETURN_RATE = 0.11;
 
   const reminderCategories = ['Préstamos', 'Tarjetas de Crédito', 'Agua', 'Luz', 'Internet', 'Teléfono', 'Cable/TV', 'Streaming', 'Alquiler', 'Seguro', 'Otros'];
@@ -72,323 +51,208 @@ export default function FinanceTracker() {
     ingreso: ['Ahorros', 'Salario', 'Quincena', 'Quincena + Incentivo', 'Otros', 'Depósito', 'Comisiones', 'Remesas']
   };
 
-  // Escuchar cambios en autenticación
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-        setShowLogin(false);
-        setShowSavingsModule(AUTHORIZED_EMAILS.includes(user.email));
-        setShowRemindersModule(user.email === REMINDERS_AUTHORIZED_EMAIL);
-      } else {
-        setCurrentUser(null);
-        setShowLogin(true);
-        setShowSavingsModule(false);
-        setShowRemindersModule(false);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    const savedTransactions = localStorage.getItem('transactions');
+    const savedReminders = localStorage.getItem('reminders');
+    const savedSavings = localStorage.getItem('savings');
+    
+    if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
+    if (savedReminders) setReminders(JSON.parse(savedReminders));
+    if (savedSavings) setSavings(JSON.parse(savedSavings));
   }, []);
 
-  // Escuchar cambios en transacciones
   useEffect(() => {
-    if (!currentUser) {
-      setTransactions([]);
-      return;
-    }
+    localStorage.setItem('transactions', JSON.stringify(transactions));
+  }, [transactions]);
 
-    const q = query(
-      collection(db, 'transactions'),
-      where('userId', '==', currentUser.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const transactionsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setTransactions(transactionsData);
-    });
-
-    return () => unsubscribe();
-  }, [currentUser]);
-
-  // Escuchar cambios en ahorros
   useEffect(() => {
-    if (!currentUser || !showSavingsModule) {
-      setSavings([]);
-      return;
-    }
+    localStorage.setItem('reminders', JSON.stringify(reminders));
+  }, [reminders]);
 
-    const q = query(collection(db, 'savings'));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const savingsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })).sort((a, b) => new Date(b.date) - new Date(a.date));
-      setSavings(savingsData);
-    });
-
-    return () => unsubscribe();
-  }, [currentUser, showSavingsModule]);
-
-  // Escuchar cambios en recordatorios
   useEffect(() => {
-    if (!currentUser || !showRemindersModule) {
-      setReminders([]);
-      return;
-    }
+    localStorage.setItem('savings', JSON.stringify(savings));
+  }, [savings]);
 
-    const q = query(
-      collection(db, 'reminders'),
-      where('userId', '==', currentUser.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const remindersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-      setReminders(remindersData);
-    });
-
-    return () => unsubscribe();
-  }, [currentUser, showRemindersModule]);
-
-  // Crear transacciones automáticas mensuales
   useEffect(() => {
     if (!currentUser || !showRemindersModule || reminders.length === 0) return;
 
-    const checkAndCreateMonthlyTransactions = async () => {
+    const checkAndCreateTransactions = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const dayOfMonth = today.getDate();
+      const isFirstDayOfMonth = today.getDate() === 1;
 
-      if (dayOfMonth === 1) {
-        for (const reminder of reminders) {
-          if (reminder.frequency === 'mensual' && reminder.status === 'pendiente') {
-            try {
-              const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-              const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
-              
-              const transactionsQuery = query(
-                collection(db, 'transactions'),
-                where('userId', '==', currentUser.uid),
-                where('reminderId', '==', reminder.id),
-                where('date', '>=', firstDayOfMonth),
-                where('date', '<=', lastDayOfMonth)
-              );
-              
-              const existingTransactions = await getDocs(transactionsQuery);
-              
-              if (existingTransactions.empty) {
-                await addDoc(collection(db, 'transactions'), {
-                  userId: currentUser.uid,
-                  type: 'gasto',
-                  amount: reminder.amount,
-                  category: reminder.category,
-                  description: `${reminder.name} (Pago mensual automático)`,
-                  status: 'pendiente',
-                  date: today.toISOString(),
-                  createdAt: new Date(),
-                  fromReminder: true,
-                  reminderId: reminder.id,
-                  autoCreated: true
-                });
-              }
-            } catch (error) {
-              console.error('Error al crear transacción mensual:', error);
-            }
+      if (!isFirstDayOfMonth) return;
+
+      reminders.forEach(reminder => {
+        if (reminder.frequency === 'mensual') {
+          const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+          const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+          
+          const existingTransaction = transactions.find(t => 
+            t.reminderId === reminder.id &&
+            new Date(t.date) >= firstDayOfMonth &&
+            new Date(t.date) <= lastDayOfMonth
+          );
+          
+          if (!existingTransaction) {
+            const newTransaction = {
+              id: Date.now() + Math.random(),
+              userId: currentUser.uid,
+              type: 'gasto',
+              amount: reminder.amount,
+              category: reminder.category,
+              description: `${reminder.name}`,
+              status: 'pendiente',
+              date: today.toISOString(),
+              createdAt: new Date().toISOString(),
+              fromReminder: true,
+              reminderId: reminder.id,
+              autoCreated: true
+            };
+            
+            setTransactions(prev => [...prev, newTransaction]);
           }
         }
-      }
+      });
     };
 
-    checkAndCreateMonthlyTransactions();
-    const interval = setInterval(checkAndCreateMonthlyTransactions, 21600000);
+    checkAndCreateTransactions();
+    const interval = setInterval(checkAndCreateTransactions, 21600000);
+
     return () => clearInterval(interval);
-  }, [currentUser, showRemindersModule, reminders]);
+  }, [currentUser, showRemindersModule, reminders, transactions]);
 
-  // Funciones de autenticación
-  const handleRegister = async () => {
-    setLoginError('');
-    if (registerForm.password !== registerForm.confirmPassword) {
-      setLoginError('Las contraseñas no coinciden');
-      return;
-    }
-    if (!registerForm.email || !registerForm.password) {
-      setLoginError('Completa todos los campos');
-      return;
-    }
-    if (registerForm.password.length < 6) {
-      setLoginError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-    try {
-      await createUserWithEmailAndPassword(auth, registerForm.email, registerForm.password);
-      setRegisterForm({ email: '', password: '', confirmPassword: '' });
-      setIsRegistering(false);
-      setLoginError('');
-    } catch (error) {
-      if (error.code === 'auth/email-already-in-use') {
-        setLoginError('El correo ya está registrado');
-      } else if (error.code === 'auth/invalid-email') {
-        setLoginError('Correo electrónico inválido');
-      } else {
-        setLoginError('Error al registrarse');
-      }
-    }
+  const handleLogout = () => {
+    setTransactions([]);
+    setSavings([]);
+    setReminders([]);
+    setActiveTab('finanzas');
+    setShowLogin(true);
   };
 
-  const handleLogin = async () => {
-    setLoginError('');
-    if (!loginForm.email || !loginForm.password) {
-      setLoginError('Completa todos los campos');
-      return;
-    }
-    try {
-      await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password);
-      setLoginForm({ email: '', password: '' });
-    } catch (error) {
-      setLoginError('Contraseña o usuario inválido');
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setTransactions([]);
-      setSavings([]);
-      setReminders([]);
-      setActiveTab('finanzas');
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-    }
-  };
-
-  // Funciones de recordatorios
-  const addReminder = async () => {
+  const addReminder = () => {
     if (!reminderName || !reminderAmount || !reminderDueDate || !reminderCategory) {
       alert('Por favor completa todos los campos');
       return;
     }
+
     const cleanAmount = reminderAmount.replace(/,/g, '').replace(/[^\d.]/g, '');
     const numericAmount = parseFloat(cleanAmount);
+
     if (isNaN(numericAmount) || numericAmount <= 0) {
       alert('Por favor ingresa un monto válido mayor a 0');
       return;
     }
-    try {
-      await addDoc(collection(db, 'reminders'), {
-        userId: currentUser.uid,
-        name: reminderName,
-        amount: numericAmount,
-        dueDate: reminderDueDate,
-        category: reminderCategory,
-        frequency: reminderFrequency,
-        status: 'pendiente',
-        createdAt: new Date()
-      });
-      setReminderName('');
-      setReminderAmount('');
-      setReminderDueDate('');
-      setReminderCategory('');
-      setReminderFrequency('unica');
-      alert('Recordatorio agregado exitosamente');
-    } catch (error) {
-      console.error('Error al agregar recordatorio:', error);
-    }
+
+    const newReminder = {
+      id: Date.now() + Math.random(),
+      userId: currentUser.uid,
+      name: reminderName,
+      amount: numericAmount,
+      dueDate: reminderDueDate,
+      category: reminderCategory,
+      frequency: reminderFrequency,
+      status: 'pendiente',
+      createdAt: new Date().toISOString()
+    };
+
+    setReminders(prev => [...prev, newReminder].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate)));
+
+    setReminderName('');
+    setReminderAmount('');
+    setReminderDueDate('');
+    setReminderCategory('');
+    setReminderFrequency('unica');
+    alert('Recordatorio agregado exitosamente');
   };
 
-  const deleteReminder = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este recordatorio?')) return;
-    try {
-      await deleteDoc(doc(db, 'reminders', id));
-      const q = query(
-        collection(db, 'transactions'),
-        where('userId', '==', currentUser.uid),
-        where('reminderId', '==', id)
-      );
-      const snapshot = await getDocs(q);
-      const deletePromises = snapshot.docs.map(docSnapshot => 
-        deleteDoc(doc(db, 'transactions', docSnapshot.id))
-      );
-      await Promise.all(deletePromises);
-      alert('Recordatorio y transacciones relacionadas eliminadas');
-    } catch (error) {
-      console.error('Error al eliminar recordatorio:', error);
+  const deleteReminder = (id) => {
+    if (!window.confirm('¿Estás seguro de eliminar este recordatorio? Esto también eliminará las transacciones relacionadas.')) {
+      return;
     }
+
+    setTransactions(prev => prev.filter(t => t.reminderId !== id));
+    setReminders(prev => prev.filter(r => r.id !== id));
+    
+    alert('Recordatorio y transacciones relacionadas eliminadas');
   };
 
-  const toggleReminderStatus = async (id, currentStatus, reminder) => {
-    try {
-      const newStatus = currentStatus === 'pagado' ? 'pendiente' : 'pagado';
-      await updateDoc(doc(db, 'reminders', id), {
-        status: newStatus,
-        paidDate: newStatus === 'pagado' ? new Date().toISOString() : null
-      });
-      if (newStatus === 'pagado') {
-        const q = query(
-          collection(db, 'transactions'),
-          where('userId', '==', currentUser.uid),
-          where('reminderId', '==', id)
-        );
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          const transactionDoc = snapshot.docs[0];
-          await updateDoc(doc(db, 'transactions', transactionDoc.id), {
-            status: 'pagado',
-            description: `Pago: ${reminder.name}`,
-            date: new Date().toISOString()
-          });
-        } else {
-          await addDoc(collection(db, 'transactions'), {
-            userId: currentUser.uid,
-            type: 'gasto',
-            amount: reminder.amount,
-            category: reminder.category,
-            description: `Pago: ${reminder.name}`,
-            status: 'pagado',
-            date: new Date().toISOString(),
-            createdAt: new Date(),
-            fromReminder: true,
-            reminderId: id
-          });
-        }
-        alert('Pago registrado');
+  const toggleReminderStatus = (id, currentStatus, reminder) => {
+    const newStatus = currentStatus === 'pagado' ? 'pendiente' : 'pagado';
+    
+    setReminders(prev => prev.map(r => 
+      r.id === id 
+        ? { ...r, status: newStatus, paidDate: newStatus === 'pagado' ? new Date().toISOString() : null }
+        : r
+    ));
+
+    const relatedTransactions = transactions.filter(t => t.reminderId === id);
+
+    if (newStatus === 'pagado') {
+      if (relatedTransactions.length > 0) {
+        setTransactions(prev => prev.map(t => 
+          t.reminderId === id 
+            ? { ...t, status: 'pagado', paidDate: new Date().toISOString() }
+            : t
+        ));
       } else {
-        const q = query(
-          collection(db, 'transactions'),
-          where('userId', '==', currentUser.uid),
-          where('reminderId', '==', id)
-        );
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          const transactionDoc = snapshot.docs[0];
-          await updateDoc(doc(db, 'transactions', transactionDoc.id), {
-            status: 'pendiente'
-          });
-        }
+        const newTransaction = {
+          id: Date.now() + Math.random(),
+          userId: currentUser.uid,
+          type: 'gasto',
+          amount: reminder.amount,
+          category: reminder.category,
+          description: `${reminder.name}`,
+          status: 'pagado',
+          date: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          fromReminder: true,
+          reminderId: id,
+          paidDate: new Date().toISOString()
+        };
+        
+        setTransactions(prev => [...prev, newTransaction]);
       }
-    } catch (error) {
-      console.error('Error:', error);
+    } else {
+      setTransactions(prev => prev.map(t => 
+        t.reminderId === id 
+          ? { ...t, status: 'pendiente', paidDate: null }
+          : t
+      ));
     }
+  };
+
+  const handleReminderAmountInput = (value) => {
+    const cleaned = value.replace(/[^\d.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length > 2) return;
+    
+    let formatted = parts[0];
+    if (formatted) {
+      formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    
+    if (parts.length === 2) {
+      formatted = formatted + '.' + parts[1].slice(0, 2);
+    }
+    
+    setReminderAmount(formatted);
   };
 
   const getDaysUntilDue = (dueDate) => {
     const today = new Date();
     const due = new Date(dueDate);
     const diffTime = due - today;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   const filterReminders = () => {
     return reminders.filter(reminder => {
       if (reminderFilter === 'todos') return true;
+      
       const daysUntil = getDaysUntilDue(reminder.dueDate);
+      
       if (reminderFilter === 'pendientes') {
         return reminder.status === 'pendiente' && daysUntil > 7;
       } else if (reminderFilter === 'pronto') {
@@ -398,102 +262,109 @@ export default function FinanceTracker() {
       } else if (reminderFilter === 'pagados') {
         return reminder.status === 'pagado';
       }
+      
       return true;
     });
   };
 
-  // Funciones de transacciones
-  const addTransaction = async () => {
+  const addTransaction = () => {
     if (!amount || !category) {
       alert('Por favor completa todos los campos');
       return;
     }
-    try {
-      await addDoc(collection(db, 'transactions'), {
-        userId: currentUser.uid,
-        type: transactionType,
-        amount: parseFloat(amount),
-        category,
-        description,
-        status: transactionType === 'ingreso' ? 'pagado' : status,
-        date: new Date().toISOString(),
-        createdAt: new Date()
-      });
-      setAmount('');
-      setCategory('');
-      setDescription('');
-    } catch (error) {
-      console.error('Error:', error);
+
+    const newTransaction = {
+      id: Date.now() + Math.random(),
+      userId: currentUser.uid,
+      type: transactionType,
+      amount: parseFloat(amount),
+      category,
+      description,
+      status: transactionType === 'ingreso' ? 'pagado' : status,
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
+
+    setTransactions(prev => [...prev, newTransaction]);
+
+    setAmount('');
+    setCategory('');
+    setDescription('');
+  };
+
+  const deleteTransaction = (id) => {
+    const transaction = transactions.find(t => t.id === id);
+    
+    if (transaction && transaction.reminderId) {
+      const reminder = reminders.find(r => r.id === transaction.reminderId);
+      if (reminder && reminder.status === 'pagado') {
+        setReminders(prev => prev.map(r => 
+          r.id === transaction.reminderId 
+            ? { ...r, status: 'pendiente', paidDate: null }
+            : r
+        ));
+      }
+    }
+    
+    setTransactions(prev => prev.filter(t => t.id !== id));
+  };
+
+  const toggleStatus = (id, currentStatus) => {
+    const newStatus = currentStatus === 'pagado' ? 'pendiente' : 'pagado';
+    
+    setTransactions(prev => prev.map(t => 
+      t.id === id 
+        ? { ...t, status: newStatus, paidDate: newStatus === 'pagado' ? new Date().toISOString() : null }
+        : t
+    ));
+
+    const transaction = transactions.find(t => t.id === id);
+    if (transaction && transaction.reminderId) {
+      setReminders(prev => prev.map(r => 
+        r.id === transaction.reminderId 
+          ? { ...r, status: newStatus, paidDate: newStatus === 'pagado' ? new Date().toISOString() : null }
+          : r
+      ));
     }
   };
 
-  const deleteTransaction = async (id) => {
-    try {
-      const transactionDoc = transactions.find(t => t.id === id);
-      if (transactionDoc?.reminderId) {
-        await deleteDoc(doc(db, 'reminders', transactionDoc.reminderId));
-      }
-      await deleteDoc(doc(db, 'transactions', id));
-      if (transactionDoc?.reminderId) {
-        alert('Transacción y recordatorio eliminados');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const toggleStatus = async (id, currentStatus) => {
-    try {
-      const newStatus = currentStatus === 'pagado' ? 'pendiente' : 'pagado';
-      await updateDoc(doc(db, 'transactions', id), { status: newStatus });
-      const transaction = transactions.find(t => t.id === id);
-      if (transaction?.reminderId) {
-        await updateDoc(doc(db, 'reminders', transaction.reminderId), {
-          status: newStatus,
-          paidDate: newStatus === 'pagado' ? new Date().toISOString() : null
-        });
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  // Funciones de ahorros
-  const addSaving = async () => {
+  const addSaving = () => {
     if (!savingAmount || !savingName) {
       alert('Por favor completa el nombre y el monto');
       return;
     }
+
     const cleanAmount = savingAmount.replace(/,/g, '').replace(/[^\d.]/g, '');
     const numericAmount = parseFloat(cleanAmount);
+
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      alert('Por favor ingresa un monto válido');
+      alert('Por favor ingresa un monto válido mayor a 0');
       return;
     }
-    try {
-      await addDoc(collection(db, 'savings'), {
-        name: savingName,
-        amount: numericAmount,
-        date: savingDate,
-        addedBy: currentUser.email,
-        createdAt: new Date()
-      });
-      setSavingName('');
-      setSavingAmount('');
-      setSavingDate(new Date().toISOString().split('T')[0]);
-      alert('Ahorro agregado');
-    } catch (error) {
-      console.error('Error:', error);
-    }
+
+    const newSaving = {
+      id: Date.now() + Math.random(),
+      name: savingName,
+      amount: numericAmount,
+      date: savingDate,
+      addedBy: currentUser.email,
+      createdAt: new Date().toISOString()
+    };
+
+    setSavings(prev => [...prev, newSaving].sort((a, b) => new Date(b.date) - new Date(a.date)));
+
+    setSavingName('');
+    setSavingAmount('');
+    setSavingDate(new Date().toISOString().split('T')[0]);
+    alert('Ahorro agregado exitosamente');
   };
 
-  const deleteSaving = async (id) => {
-    if (!window.confirm('¿Estás seguro?')) return;
-    try {
-      await deleteDoc(doc(db, 'savings', id));
-    } catch (error) {
-      console.error('Error:', error);
+  const deleteSaving = (id) => {
+    if (!window.confirm('¿Estás seguro de eliminar este ahorro?')) {
+      return;
     }
+
+    setSavings(prev => prev.filter(s => s.id !== id));
   };
 
   const calculateCompoundInterest = () => {
@@ -501,33 +372,33 @@ export default function FinanceTracker() {
     let history = [];
     let accumulated = 0;
     let totalInterest = 0;
+
     sortedSavings.forEach((saving) => {
       const savingDate = new Date(saving.date);
       const today = new Date();
       const daysElapsed = Math.max(0, Math.floor((today - savingDate) / (1000 * 60 * 60 * 24)));
+      const yearsElapsed = daysElapsed / 365;
+
       const dailyRate = Math.pow(1 + ANNUAL_RETURN_RATE, 1/365) - 1;
       const amountWithInterest = saving.amount * Math.pow(1 + dailyRate, daysElapsed);
       const interestEarned = amountWithInterest - saving.amount;
+
       accumulated += amountWithInterest;
       totalInterest += interestEarned;
+
       history.push({
         ...saving,
         daysElapsed,
-        yearsElapsed: (daysElapsed / 365).toFixed(2),
+        yearsElapsed: yearsElapsed.toFixed(2),
         interestEarned,
         currentValue: amountWithInterest,
         accumulatedTotal: accumulated
       });
     });
-    return { 
-      history, 
-      totalInterest, 
-      totalInvested: sortedSavings.reduce((sum, s) => sum + s.amount, 0), 
-      accumulated 
-    };
+
+    return { history, totalInterest, totalInvested: sortedSavings.reduce((sum, s) => sum + s.amount, 0), accumulated };
   };
 
-  // Utilidades
   const formatCurrency = (value) => {
     return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
@@ -536,28 +407,17 @@ export default function FinanceTracker() {
     const cleaned = value.replace(/[^\d.]/g, '');
     const parts = cleaned.split('.');
     if (parts.length > 2) return;
+    
     let formatted = parts[0];
     if (formatted) {
       formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
+    
     if (parts.length === 2) {
       formatted = formatted + '.' + parts[1].slice(0, 2);
     }
+    
     setSavingAmount(formatted);
-  };
-
-  const handleReminderAmountInput = (value) => {
-    const cleaned = value.replace(/[^\d.]/g, '');
-    const parts = cleaned.split('.');
-    if (parts.length > 2) return;
-    let formatted = parts[0];
-    if (formatted) {
-      formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
-    if (parts.length === 2) {
-      formatted = formatted + '.' + parts[1].slice(0, 2);
-    }
-    setReminderAmount(formatted);
   };
 
   const filterTransactionsByDate = () => {
@@ -592,332 +452,178 @@ export default function FinanceTracker() {
     );
   }
 
-  if (showLogin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-          <div className="text-center mb-8">
-            <DollarSign className="w-16 h-16 mx-auto text-blue-600 mb-4" />
-            <h1 className="text-3xl font-bold text-gray-800">Finanzas Personales</h1>
-            <p className="text-gray-600 mt-2">Organiza tus ingresos y gastos</p>
-          </div>
-          {!isRegistering ? (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Correo Electrónico</label>
-                <input
-                  type="email"
-                  value={loginForm.email}
-                  onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
-                  onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="tu@email.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
-                <input
-                  type="password"
-                  value={loginForm.password}
-                  onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
-                  onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="••••••••"
-                />
-              </div>
-              {loginError && <p className="text-red-500 text-sm text-center">{loginError}</p>}
-              <button onClick={handleLogin} className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-                Iniciar Sesión
-              </button>
-              <button onClick={() => { setIsRegistering(true); setLoginError(''); }} className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
-                Crear Cuenta
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Correo Electrónico</label>
-                <input
-                  type="email"
-                  value={registerForm.email}
-                  onChange={(e) => setRegisterForm({...registerForm, email: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="tu@email.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña (mínimo 6 caracteres)</label>
-                <input
-                  type="password"
-                  value={registerForm.password}
-                  onChange={(e) => setRegisterForm({...registerForm, password: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="••••••••"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Confirmar Contraseña</label>
-                <input
-                  type="password"
-                  value={registerForm.confirmPassword}
-                  onChange={(e) => setRegisterForm({...registerForm, confirmPassword: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="••••••••"
-                />
-              </div>
-              {loginError && <p className="text-red-500 text-sm text-center">{loginError}</p>}
-              <button onClick={handleRegister} className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition">
-                Registrarse
-              </button>
-              <button onClick={() => { setIsRegistering(false); setLoginError(''); }} className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
-                Volver al Login
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-100">
+      <style>{styles}</style>
       {/* Header */}
       <div className="bg-white shadow-md sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-2 sm:px-4">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4">
           <div className="flex justify-between items-center py-3 sm:py-4">
             <div className="flex items-center gap-2 sm:gap-3">
               <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               <div>
                 <h1 className="text-base sm:text-xl font-bold text-gray-800">Mis Finanzas</h1>
-                <p className="text-xs text-gray-600 hidden sm:block">{currentUser?.email}</p>
+                <p className="text-xs text-gray-600 truncate max-w-[150px] sm:max-w-none">{currentUser?.email}</p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1 sm:gap-2 bg-red-500 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-red-600 transition text-sm"
+              className="flex items-center gap-1 sm:gap-2 bg-red-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-red-600 transition text-sm"
             >
-              <LogOut className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Cerrar Sesión</span>
-              <span className="sm:hidden">Salir</span>
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Salir</span>
             </button>
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-1 sm:gap-2 border-t border-gray-200 pt-2 overflow-x-auto pb-2">
+          {/* Tabs de navegación */}
+          <div className="flex gap-1 sm:gap-2 border-t border-gray-200 pt-2 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={() => setActiveTab('finanzas')}
-              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-base ${
-                activeTab === 'finanzas' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-sm ${
+                activeTab === 'finanzas'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Finanzas</span>
+              Finanzas
             </button>
             {showSavingsModule && (
               <button
                 onClick={() => setActiveTab('ahorros')}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-base ${
-                  activeTab === 'ahorros' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-sm ${
+                  activeTab === 'ahorros'
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
                 <PiggyBank className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>Ahorros</span>
+                Ahorros
               </button>
             )}
             {showRemindersModule && (
               <button
                 onClick={() => setActiveTab('recordatorios')}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-base ${
-                  activeTab === 'recordatorios' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-sm ${
+                  activeTab === 'recordatorios'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                <span>Recordatorios</span>
+                Recordatorios
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Contenido Principal */}
-      <div className="max-w-6xl mx-auto p-2 sm:p-4">
-        {activeTab === 'finanzas' ? (
+      {/* Contenido */}
+      <div className="max-w-6xl mx-auto p-3 sm:p-4 pb-20">
+        {activeTab === 'finanzas' && (
           <>
             {/* Dashboard */}
-            <div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-4 sm:mb-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
-                <h2 className="text-lg sm:text-2xl font-bold text-gray-800">Dashboard de Finanzas</h2>
-                <div className="flex gap-1 sm:gap-2 flex-wrap w-full sm:w-auto">
-                  <button onClick={() => setDateFilter('dia')} className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${dateFilter === 'dia' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Día</button>
-                  <button onClick={() => setDateFilter('mes')} className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${dateFilter === 'mes' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Mes</button>
-                  <button onClick={() => setDateFilter('ano')} className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${dateFilter === 'ano' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Año</button>
-                  <input type="date" value={selectedDate.toISOString().split('T')[0]} onChange={(e) => setSelectedDate(new Date(e.target.value))} className="px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm" />
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Dashboard</h2>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                  <button onClick={() => setDateFilter('dia')} className={`flex-1 sm:flex-none px-3 py-2 rounded-lg font-semibold text-xs ${dateFilter === 'dia' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Día</button>
+                  <button onClick={() => setDateFilter('mes')} className={`flex-1 sm:flex-none px-3 py-2 rounded-lg font-semibold text-xs ${dateFilter === 'mes' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Mes</button>
+                  <button onClick={() => setDateFilter('ano')} className={`flex-1 sm:flex-none px-3 py-2 rounded-lg font-semibold text-xs ${dateFilter === 'ano' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Año</button>
+                  <input type="date" value={selectedDate.toISOString().split('T')[0]} onChange={(e) => setSelectedDate(new Date(e.target.value))} className="flex-1 sm:flex-none px-3 py-2 border rounded-lg text-xs" />
                 </div>
               </div>
 
-              {/* KPIs */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                <div className="text-center p-2 sm:p-0">
-                  <p className="text-gray-600 text-xs mb-1">Total Ingresos</p>
-                  <p className="text-base sm:text-2xl font-bold text-green-600">${formatCurrency(totalIngresos)}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+                <div className="text-center p-3 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">Ingresos</p>
+                  <p className="text-lg sm:text-xl font-bold text-green-600">${formatCurrency(totalIngresos)}</p>
                 </div>
-                <div className="text-center p-2 sm:p-0">
-                  <p className="text-gray-600 text-xs mb-1">Total Gastos</p>
-                  <p className="text-base sm:text-2xl font-bold text-red-600">${formatCurrency(totalGastos)}</p>
+                <div className="text-center p-3 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">Gastos</p>
+                  <p className="text-lg sm:text-xl font-bold text-red-600">${formatCurrency(totalGastos)}</p>
                 </div>
-                <div className="text-center p-2 sm:p-0">
-                  <p className="text-gray-600 text-xs mb-1">Balance</p>
-                  <p className={`text-base sm:text-2xl font-bold ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>${formatCurrency(Math.abs(balance))}</p>
+                <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">Balance</p>
+                  <p className={`text-lg sm:text-xl font-bold ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>${formatCurrency(Math.abs(balance))}</p>
                 </div>
-                <div className="text-center p-2 sm:p-0">
-                  <p className="text-gray-600 text-xs mb-1">Pendientes</p>
-                  <p className="text-base sm:text-2xl font-bold text-yellow-600">{filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pendiente').length}</p>
+                <div className="text-center p-3 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">Pendientes</p>
+                  <p className="text-lg sm:text-xl font-bold text-yellow-600">{filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pendiente').length}</p>
                 </div>
-                <div className="text-center p-2 sm:p-0">
-                  <p className="text-gray-600 text-xs mb-1">Pagados</p>
-                  <p className="text-base sm:text-2xl font-bold text-green-600">{filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pagado').length}</p>
+                <div className="text-center p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">Pagados</p>
+                  <p className="text-lg sm:text-xl font-bold text-emerald-600">{filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pagado').length}</p>
                 </div>
-                <div className="text-center p-2 sm:p-0">
-                  <p className="text-gray-600 text-xs mb-1">Transacciones</p>
-                  <p className="text-base sm:text-2xl font-bold text-purple-600">{filteredTransactions.length}</p>
-                </div>
-              </div>
-
-              {/* Gráficos */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                <div>
-                  <h3 className="text-sm sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4">Gastos por Categoría</h3>
-                  <div className="space-y-2 sm:space-y-3">
-                    {(() => {
-                      const categoryTotals = {};
-                      filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pagado').forEach(t => {
-                        categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-                      });
-                      const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).slice(0, 6);
-                      const maxAmount = sortedCategories[0]?.[1] || 1;
-                      return sortedCategories.length > 0 ? (
-                        sortedCategories.map(([category, amount]) => (
-                          <div key={category} className="space-y-1">
-                            <div className="flex justify-between text-xs sm:text-sm">
-                              <span className="font-semibold text-gray-700">{category}</span>
-                              <span className="text-gray-600">${formatCurrency(amount)}</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
-                              <div className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 sm:h-3 rounded-full" style={{ width: `${(amount / maxAmount) * 100}%` }}></div>
-                            </div>
-                          </div>
-                        ))
-                      ) : <p className="text-gray-500 text-center py-4 text-xs sm:text-base">No hay datos</p>;
-                    })()}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4">Ingresos por Categoría</h3>
-                  <div className="space-y-2 sm:space-y-3">
-                    {(() => {
-                      const categoryTotals = {};
-                      filteredTransactions.filter(t => t.type === 'ingreso').forEach(t => {
-                        categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-                      });
-                      const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).slice(0, 6);
-                      const maxAmount = sortedCategories[0]?.[1] || 1;
-                      return sortedCategories.length > 0 ? (
-                        sortedCategories.map(([category, amount]) => (
-                          <div key={category} className="space-y-1">
-                            <div className="flex justify-between text-xs sm:text-sm">
-                              <span className="font-semibold text-gray-700">{category}</span>
-                              <span className="text-gray-600">${formatCurrency(amount)}</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
-                              <div className="bg-gradient-to-r from-green-500 to-green-600 h-2 sm:h-3 rounded-full" style={{ width: `${(amount / maxAmount) * 100}%` }}></div>
-                            </div>
-                          </div>
-                        ))
-                      ) : <p className="text-gray-500 text-center py-4 text-xs sm:text-base">No hay datos</p>;
-                    })()}
-                  </div>
+                <div className="text-center p-3 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">Total</p>
+                  <p className="text-lg sm:text-xl font-bold text-purple-600">{filteredTransactions.length}</p>
                 </div>
               </div>
             </div>
 
-            {/* Agregar Transacción */}
-            <div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">Agregar Transacción</h2>
-              <div className="flex gap-2 sm:gap-4 mb-3 sm:mb-4">
-                <button onClick={() => setTransactionType('gasto')} className={`flex-1 py-2 sm:py-3 rounded-lg font-semibold transition text-sm sm:text-base ${transactionType === 'gasto' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Gasto</button>
-                <button onClick={() => setTransactionType('ingreso')} className={`flex-1 py-2 sm:py-3 rounded-lg font-semibold transition text-sm sm:text-base ${transactionType === 'ingreso' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Ingreso</button>
+            {/* Agregar */}
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4">
+              <h2 className="text-lg sm:text-xl font-bold mb-3">Nueva Transacción</h2>
+              <div className="flex gap-2 mb-3">
+                <button onClick={() => setTransactionType('gasto')} className={`flex-1 py-2 rounded-lg font-semibold text-sm ${transactionType === 'gasto' ? 'bg-red-600 text-white' : 'bg-gray-200'}`}>Gasto</button>
+                <button onClick={() => setTransactionType('ingreso')} className={`flex-1 py-2 rounded-lg font-semibold text-sm ${transactionType === 'ingreso' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>Ingreso</button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Monto</label>
-                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" />
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Categoría</label>
-                  <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base">
-                    <option value="">Seleccionar</option>
-                    {categories[transactionType].map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Monto" className="px-3 py-2 border rounded-lg text-sm" />
+                <select value={category} onChange={(e) => setCategory(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                  <option value="">Categoría</option>
+                  {categories[transactionType].map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Descripción</label>
-                  <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional" className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción (opcional)" className="px-3 py-2 border rounded-lg text-sm" />
                 {transactionType === 'gasto' && (
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Estado</label>
-                    <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base">
-                      <option value="pendiente">Pendiente</option>
-                      <option value="pagado">Pagado</option>
-                    </select>
-                  </div>
+                  <select value={status} onChange={(e) => setStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                    <option value="pendiente">Pendiente</option>
+                    <option value="pagado">Pagado</option>
+                  </select>
                 )}
               </div>
-              <button onClick={addTransaction} className="w-full bg-blue-600 text-white py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm sm:text-base">
-                <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                Agregar
+              <button onClick={addTransaction} className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2 text-sm">
+                <PlusCircle className="w-4 h-4" />Agregar
               </button>
             </div>
 
             {/* Historial */}
-            <div className="bg-white rounded-lg shadow-md p-3 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">Historial de Transacciones</h2>
-              <div className="space-y-2 sm:space-y-3">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold mb-3">Historial</h2>
+              <div className="space-y-2">
                 {filteredTransactions.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8 text-sm sm:text-base">No hay transacciones</p>
+                  <p className="text-gray-500 text-center py-8 text-sm">No hay transacciones</p>
                 ) : (
                   filteredTransactions.map(transaction => (
-                    <div key={transaction.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition">
-                      <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
-                        <div className="flex-1 w-full">
+                    <div key={transaction.id} className="border rounded-lg p-3 hover:shadow-md transition">
+                      <div className="flex flex-col sm:flex-row justify-between gap-3">
+                        <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2 mb-2">
-                            <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${transaction.type === 'ingreso' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${transaction.type === 'ingreso' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                               {transaction.type === 'ingreso' ? 'Ingreso' : 'Gasto'}
                             </span>
-                            <span className="font-semibold text-gray-700 text-sm sm:text-base">{transaction.category}</span>
-                            {transaction.fromReminder && (
-                              <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">🔔 Recordatorio</span>
-                            )}
+                            <span className="font-semibold text-sm">{transaction.category}</span>
                           </div>
-                          <p className="text-gray-600 text-xs sm:text-sm">{transaction.description || 'Sin descripción'}</p>
+                          <p className="text-xs text-gray-600">{transaction.description || 'Sin descripción'}</p>
                           <p className="text-xs text-gray-400 mt-1">{new Date(transaction.date).toLocaleDateString('es-ES')}</p>
                         </div>
-                        <div className="flex flex-col sm:items-end gap-2 w-full sm:w-auto">
-                          <span className={`text-xl sm:text-2xl font-bold ${transaction.type === 'ingreso' ? 'text-green-600' : 'text-red-600'}`}>
+                        <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
+                          <span className={`text-xl font-bold ${transaction.type === 'ingreso' ? 'text-green-600' : 'text-red-600'}`}>
                             ${transaction.amount.toFixed(2)}
                           </span>
                           <div className="flex gap-2">
                             {transaction.type === 'gasto' && (
-                              <button onClick={() => toggleStatus(transaction.id, transaction.status)} className={`px-2 sm:px-3 py-1 rounded text-xs font-semibold transition ${transaction.status === 'pagado' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-yellow-500 text-white hover:bg-yellow-600'}`}>
-                                {transaction.status === 'pagado' ? 'Pagado' : 'Pendiente'}
+                              <button onClick={() => toggleStatus(transaction.id, transaction.status)} className={`px-2 py-1 rounded text-xs font-semibold ${transaction.status === 'pagado' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}`}>
+                                {transaction.status === 'pagado' ? '✓' : '⏱'}
                               </button>
                             )}
-                            <button onClick={() => deleteTransaction(transaction.id)} className="bg-red-500 text-white p-2 rounded hover:bg-red-600 transition">
-                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <button onClick={() => deleteTransaction(transaction.id)} className="bg-red-500 text-white p-1.5 rounded hover:bg-red-600">
+                              <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
                         </div>
@@ -928,16 +634,226 @@ export default function FinanceTracker() {
               </div>
             </div>
           </>
-        ) : activeTab === 'ahorros' ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600">Módulo de Ahorros - Sección muy extensa</p>
-            <p className="text-sm text-gray-500 mt-2">Ver archivo original para código completo</p>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-600">Módulo de Recordatorios - Sección muy extensa</p>
-            <p className="text-sm text-gray-500 mt-2">Ver archivo original para código completo</p>
-          </div>
+        )}
+
+        {activeTab === 'ahorros' && (
+          <>
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg shadow-lg p-4 sm:p-6 mb-4">
+              <div className="flex items-center gap-3">
+                <PiggyBank className="w-8 h-8 sm:w-10 sm:h-10" />
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold">Inversión</h2>
+                  <p className="text-sm text-purple-100">Retorno: 11% anual</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
+              {(() => {
+                const { totalInvested, totalInterest, accumulated } = calculateCompoundInterest();
+                return (
+                  <>
+                    <div className="bg-blue-500 text-white rounded-lg shadow-lg p-4">
+                      <p className="text-sm">Invertido</p>
+                      <p className="text-2xl sm:text-3xl font-bold">${formatCurrency(totalInvested)}</p>
+                    </div>
+                    <div className="bg-green-500 text-white rounded-lg shadow-lg p-4">
+                      <p className="text-sm">Intereses</p>
+                      <p className="text-2xl sm:text-3xl font-bold">${formatCurrency(totalInterest)}</p>
+                    </div>
+                    <div className="bg-purple-500 text-white rounded-lg shadow-lg p-4">
+                      <p className="text-sm">Total</p>
+                      <p className="text-2xl sm:text-3xl font-bold">${formatCurrency(accumulated)}</p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4">
+              <h2 className="text-lg sm:text-xl font-bold mb-3">Agregar Ahorro</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                <input type="text" value={savingName} onChange={(e) => setSavingName(e.target.value)} placeholder="Nombre" className="px-3 py-2 border rounded-lg text-sm" />
+                <input type="text" value={savingAmount} onChange={(e) => handleAmountInput(e.target.value)} placeholder="5,000.00" className="px-3 py-2 border rounded-lg text-sm" />
+                <input type="date" value={savingDate} onChange={(e) => setSavingDate(e.target.value)} className="px-3 py-2 border rounded-lg text-sm" />
+              </div>
+              <button onClick={addSaving} className="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 flex items-center justify-center gap-2 text-sm">
+                <PlusCircle className="w-4 h-4" />Agregar
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold mb-3">Historial</h2>
+              <div className="space-y-3">
+                {savings.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8 text-sm">No hay ahorros</p>
+                ) : (
+                  calculateCompoundInterest().history.map((saving) => (
+                    <div key={saving.id} className="border-2 border-purple-200 rounded-lg p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-indigo-50">
+                      <div className="flex flex-col sm:flex-row justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-bold text-sm sm:text-base">{saving.name}</span>
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">{new Date(saving.date).toLocaleDateString('es-ES')}</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+                            <div><span className="text-gray-500">Capital:</span> <span className="font-bold">${formatCurrency(saving.amount)}</span></div>
+                            <div><span className="text-gray-500">Interés:</span> <span className="font-bold text-green-600">+${formatCurrency(saving.interestEarned)}</span></div>
+                            <div><span className="text-gray-500">Valor:</span> <span className="font-bold">${formatCurrency(saving.currentValue)}</span></div>
+                            <div><span className="text-gray-500">Días:</span> <span className="font-bold">{saving.daysElapsed}</span></div>
+                          </div>
+                        </div>
+                        <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
+                          <div className="text-center bg-purple-100 rounded-lg p-2">
+                            <p className="text-xs text-purple-600">Acumulado</p>
+                            <p className="text-lg sm:text-xl font-bold text-purple-700">${formatCurrency(saving.accumulatedTotal)}</p>
+                          </div>
+                          <button onClick={() => deleteSaving(saving.id)} className="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 flex items-center gap-1 text-xs">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'recordatorios' && (
+          <>
+            <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg shadow-lg p-4 sm:p-6 mb-4">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold">Recordatorios</h2>
+                  <p className="text-sm text-orange-100">Pagos y Servicios</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              {(() => {
+                const pendingReminders = reminders.filter(r => r.status === 'pendiente');
+                const totalPending = pendingReminders.reduce((sum, r) => sum + r.amount, 0);
+                const overdueReminders = pendingReminders.filter(r => getDaysUntilDue(r.dueDate) < 0);
+                const dueSoonReminders = pendingReminders.filter(r => {
+                  const days = getDaysUntilDue(r.dueDate);
+                  return days >= 0 && days <= 7;
+                });
+                return (
+                  <>
+                    <div className="bg-white rounded-lg shadow-md p-3 border-l-4 border-orange-500">
+                      <p className="text-xs text-gray-600 mb-1">Total</p>
+                      <p className="text-xl sm:text-2xl font-bold text-orange-600">{reminders.length}</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-3 border-l-4 border-red-500">
+                      <p className="text-xs text-gray-600 mb-1">Pendiente</p>
+                      <p className="text-xl sm:text-2xl font-bold text-red-600">${formatCurrency(totalPending)}</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-3 border-l-4 border-yellow-500">
+                      <p className="text-xs text-gray-600 mb-1">Pronto</p>
+                      <p className="text-xl sm:text-2xl font-bold text-yellow-600">{dueSoonReminders.length}</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-3 border-l-4 border-purple-500">
+                      <p className="text-xs text-gray-600 mb-1">Vencidos</p>
+                      <p className="text-xl sm:text-2xl font-bold text-purple-600">{overdueReminders.length}</p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4">
+              <h2 className="text-lg sm:text-xl font-bold mb-3">Agregar Recordatorio</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+                <input type="text" value={reminderName} onChange={(e) => setReminderName(e.target.value)} placeholder="Nombre" className="px-3 py-2 border rounded-lg text-sm" />
+                <input type="text" value={reminderAmount} onChange={(e) => handleReminderAmountInput(e.target.value)} placeholder="5,000.00" className="px-3 py-2 border rounded-lg text-sm" />
+                <input type="date" value={reminderDueDate} onChange={(e) => setReminderDueDate(e.target.value)} className="px-3 py-2 border rounded-lg text-sm" />
+                <select value={reminderCategory} onChange={(e) => setReminderCategory(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                  <option value="">Categoría</option>
+                  {reminderCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+                <select value={reminderFrequency} onChange={(e) => setReminderFrequency(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                  <option value="unica">Única vez</option>
+                  <option value="mensual">Mensual</option>
+                  <option value="quincenal">Quincenal</option>
+                  <option value="anual">Anual</option>
+                </select>
+              </div>
+              <button onClick={addReminder} className="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold hover:bg-orange-700 flex items-center justify-center gap-2 text-sm">
+                <PlusCircle className="w-4 h-4" />Agregar
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
+                <h2 className="text-lg sm:text-xl font-bold">Mis Recordatorios</h2>
+                <div className="flex gap-2 flex-wrap w-full sm:w-auto">
+                  <button onClick={() => setReminderFilter('todos')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'todos' ? 'bg-orange-600 text-white' : 'bg-gray-200'}`}>
+                    Todos ({reminders.length})
+                  </button>
+                  <button onClick={() => setReminderFilter('pendientes')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'pendientes' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
+                    Pendientes
+                  </button>
+                  <button onClick={() => setReminderFilter('pronto')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'pronto' ? 'bg-yellow-600 text-white' : 'bg-gray-200'}`}>
+                    Pronto
+                  </button>
+                  <button onClick={() => setReminderFilter('vencidos')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'vencidos' ? 'bg-red-600 text-white' : 'bg-gray-200'}`}>
+                    Vencidos
+                  </button>
+                  <button onClick={() => setReminderFilter('pagados')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'pagados' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                    Pagados
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2 sm:space-y-3">
+                {filterReminders().length === 0 ? (
+                  <p className="text-gray-500 text-center py-8 text-sm">No hay recordatorios</p>
+                ) : (
+                  filterReminders().map((reminder) => {
+                    const daysUntil = getDaysUntilDue(reminder.dueDate);
+                    const isOverdue = daysUntil < 0;
+                    const isDueSoon = daysUntil >= 0 && daysUntil <= 7;
+                    
+                    return (
+                      <div key={reminder.id} className={`border-2 rounded-lg p-3 sm:p-4 ${reminder.status === 'pagado' ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-300 bg-red-50' : isDueSoon ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200 bg-white'}`}>
+                        <div className="flex flex-col sm:flex-row justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="font-bold text-sm sm:text-base">{reminder.name}</span>
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${reminder.status === 'pagado' ? 'bg-green-100 text-green-800' : isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                                {reminder.status === 'pagado' ? 'Pagado' : isOverdue ? `Vencido (${Math.abs(daysUntil)}d)` : isDueSoon ? `${daysUntil}d` : `${daysUntil}d`}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div><span className="text-gray-500">Categoría:</span> <span className="font-semibold">{reminder.category}</span></div>
+                              <div><span className="text-gray-500">Frecuencia:</span> <span className="font-semibold capitalize">{reminder.frequency}</span></div>
+                              <div><span className="text-gray-500">Vence:</span> <span className="font-semibold">{new Date(reminder.dueDate).toLocaleDateString('es-ES')}</span></div>
+                            </div>
+                          </div>
+                          <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
+                            <p className="text-xl sm:text-2xl font-bold text-orange-600">${formatCurrency(reminder.amount)}</p>
+                            <div className="flex gap-2">
+                              <button onClick={() => toggleReminderStatus(reminder.id, reminder.status, reminder)} className={`px-3 py-1 sm:py-2 rounded-lg font-semibold text-xs ${reminder.status === 'pagado' ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-green-500 text-white hover:bg-green-600'}`}>
+                                {reminder.status === 'pagado' ? 'Desmarcar' : 'Pagar'}
+                              </button>
+                              <button onClick={() => deleteReminder(reminder.id)} className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
