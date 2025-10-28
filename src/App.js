@@ -47,7 +47,6 @@ export default function FinanceTracker() {
     ingreso: ['Ahorros', 'Salario', 'Quincena', 'Quincena + Incentivo', 'Otros', 'Depósito', 'Comisiones', 'Remesas']
   };
 
-  // Cargar datos al inicio
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -70,7 +69,6 @@ export default function FinanceTracker() {
     loadData();
   }, []);
 
-  // Guardar transacciones
   useEffect(() => {
     if (!loading) {
       window.storage.set('transactions', JSON.stringify(transactions)).catch(err => 
@@ -79,7 +77,6 @@ export default function FinanceTracker() {
     }
   }, [transactions, loading]);
 
-  // Guardar recordatorios
   useEffect(() => {
     if (!loading) {
       window.storage.set('reminders', JSON.stringify(reminders)).catch(err => 
@@ -88,7 +85,6 @@ export default function FinanceTracker() {
     }
   }, [reminders, loading]);
 
-  // Guardar ahorros
   useEffect(() => {
     if (!loading) {
       window.storage.set('savings', JSON.stringify(savings)).catch(err => 
@@ -97,7 +93,6 @@ export default function FinanceTracker() {
     }
   }, [savings, loading]);
 
-  // Auto-crear transacciones mensuales
   useEffect(() => {
     if (loading || reminders.length === 0) return;
 
@@ -472,7 +467,6 @@ export default function FinanceTracker() {
   return (
     <div className="min-h-screen bg-gray-100">
       <style>{styles}</style>
-      {/* Header */}
       <div className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-3 sm:px-4">
           <div className="flex justify-between items-center py-3 sm:py-4">
@@ -485,7 +479,6 @@ export default function FinanceTracker() {
             </div>
           </div>
 
-          {/* Tabs de navegación */}
           <div className="flex gap-1 sm:gap-2 border-t border-gray-200 pt-2 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={() => setActiveTab('finanzas')}
@@ -526,11 +519,9 @@ export default function FinanceTracker() {
         </div>
       </div>
 
-      {/* Contenido */}
       <div className="max-w-6xl mx-auto p-3 sm:p-4 pb-20">
         {activeTab === 'finanzas' && (
           <>
-            {/* Dashboard */}
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Dashboard</h2>
@@ -569,7 +560,6 @@ export default function FinanceTracker() {
                 </div>
               </div>
 
-              {/* Gráficos */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-lg font-bold text-gray-800 mb-4">Gastos por Categoría</h3>
@@ -578,6 +568,45 @@ export default function FinanceTracker() {
                       const categoryTotals = {};
                       filteredTransactions
                         .filter(t => t.type === 'gasto' && t.status === 'pagado')
+                        .forEach(t => {
+                          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                        });
+                      
+                      const sortedCategories = Object.entries(categoryTotals)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6);
+
+                      const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                      return sortedCategories.length > 0 ? (
+                        sortedCategories.map(([category, amount]) => (
+                          <div key={category} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-semibold text-gray-700">{category}</span>
+                              <span className="text-gray-600">${formatCurrency(amount)}</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3">
+                              <div
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all"
+                                style={{ width: `${(amount / maxAmount) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">No hay datos de gastos</p>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Ingresos por Categoría</h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const categoryTotals = {};
+                      filteredTransactions
+                        .filter(t => t.type === 'ingreso')
                         .forEach(t => {
                           categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
                         });
@@ -612,7 +641,6 @@ export default function FinanceTracker() {
               </div>
             </div>
 
-            {/* Agregar */}
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4">
               <h2 className="text-lg sm:text-xl font-bold mb-3">Nueva Transacción</h2>
               <div className="flex gap-2 mb-3">
@@ -640,7 +668,6 @@ export default function FinanceTracker() {
               </button>
             </div>
 
-            {/* Historial */}
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
               <h2 className="text-lg sm:text-xl font-bold mb-3">Historial</h2>
               <div className="space-y-2">
@@ -671,7 +698,7 @@ export default function FinanceTracker() {
                               </button>
                             )}
                             <button onClick={() => deleteTransaction(transaction.id)} className="bg-red-500 text-white p-1.5 rounded hover:bg-red-600">
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
                         </div>
@@ -757,7 +784,7 @@ export default function FinanceTracker() {
                             <p className="text-lg sm:text-xl font-bold text-purple-700">${formatCurrency(saving.accumulatedTotal)}</p>
                           </div>
                           <button onClick={() => deleteSaving(saving.id)} className="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 flex items-center gap-1 text-xs">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
@@ -890,7 +917,7 @@ export default function FinanceTracker() {
                                 {reminder.status === 'pagado' ? 'Desmarcar' : 'Pagar'}
                               </button>
                               <button onClick={() => deleteReminder(reminder.id)} className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
@@ -906,43 +933,4 @@ export default function FinanceTracker() {
       </div>
     </div>
   );
-}-between text-sm">
-                              <span className="font-semibold text-gray-700">{category}</span>
-                              <span className="text-gray-600">${formatCurrency(amount)}</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-3">
-                              <div
-                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all"
-                                style={{ width: `${(amount / maxAmount) * 100}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-gray-500 text-center py-8">No hay datos de gastos</p>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-4">Ingresos por Categoría</h3>
-                  <div className="space-y-3">
-                    {(() => {
-                      const categoryTotals = {};
-                      filteredTransactions
-                        .filter(t => t.type === 'ingreso')
-                        .forEach(t => {
-                          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-                        });
-                      
-                      const sortedCategories = Object.entries(categoryTotals)
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 6);
-
-                      const maxAmount = sortedCategories[0]?.[1] || 1;
-
-                      return sortedCategories.length > 0 ? (
-                        sortedCategories.map(([category, amount]) => (
-                          <div key={category} className="space-y-1">
-                            <div className="flex justify
+}
