@@ -865,25 +865,27 @@ export default function FinanceTracker() {
             </div>
 
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold mb-3">Mis Recordatorios</h2>
-              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-                <button onClick={() => setReminderFilter('todos')} className={`px-3 py-2 rounded-lg font-semibold text-xs whitespace-nowrap ${reminderFilter === 'todos' ? 'bg-orange-600 text-white' : 'bg-gray-200'}`}>
-                  Todos ({reminders.length})
-                </button>
-                <button onClick={() => setReminderFilter('pendientes')} className={`px-3 py-2 rounded-lg font-semibold text-xs whitespace-nowrap ${reminderFilter === 'pendientes' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                  Pendientes
-                </button>
-                <button onClick={() => setReminderFilter('pronto')} className={`px-3 py-2 rounded-lg font-semibold text-xs whitespace-nowrap ${reminderFilter === 'pronto' ? 'bg-yellow-600 text-white' : 'bg-gray-200'}`}>
-                  Pronto
-                </button>
-                <button onClick={() => setReminderFilter('vencidos')} className={`px-3 py-2 rounded-lg font-semibold text-xs whitespace-nowrap ${reminderFilter === 'vencidos' ? 'bg-red-600 text-white' : 'bg-gray-200'}`}>
-                  Vencidos
-                </button>
-                <button onClick={() => setReminderFilter('pagados')} className={`px-3 py-2 rounded-lg font-semibold text-xs whitespace-nowrap ${reminderFilter === 'pagados' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
-                  Pagados
-                </button>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
+                <h2 className="text-lg sm:text-xl font-bold">Mis Recordatorios</h2>
+                <div className="flex gap-2 flex-wrap w-full sm:w-auto">
+                  <button onClick={() => setReminderFilter('todos')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'todos' ? 'bg-orange-600 text-white' : 'bg-gray-200'}`}>
+                    Todos ({reminders.length})
+                  </button>
+                  <button onClick={() => setReminderFilter('pendientes')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'pendientes' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
+                    Pendientes
+                  </button>
+                  <button onClick={() => setReminderFilter('pronto')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'pronto' ? 'bg-yellow-600 text-white' : 'bg-gray-200'}`}>
+                    Pronto
+                  </button>
+                  <button onClick={() => setReminderFilter('vencidos')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'vencidos' ? 'bg-red-600 text-white' : 'bg-gray-200'}`}>
+                    Vencidos
+                  </button>
+                  <button onClick={() => setReminderFilter('pagados')} className={`flex-1 sm:flex-none px-3 py-1 rounded-lg font-semibold text-xs ${reminderFilter === 'pagados' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                    Pagados
+                  </button>
+                </div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {filterReminders().length === 0 ? (
                   <p className="text-gray-500 text-center py-8 text-sm">No hay recordatorios</p>
                 ) : (
@@ -893,53 +895,32 @@ export default function FinanceTracker() {
                     const isDueSoon = daysUntil >= 0 && daysUntil <= 7;
                     
                     return (
-                      <div key={reminder.id} className={`rounded-lg p-4 ${reminder.status === 'pagado' ? 'bg-gradient-to-r from-green-50 to-green-100 border-l-4 border-green-500' : isOverdue ? 'bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500' : isDueSoon ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-l-4 border-yellow-500' : 'bg-gray-50 border-l-4 border-gray-300'}`}>
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1 mr-2">
-                            <h3 className="font-bold text-base mb-1">{reminder.name}</h3>
-                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${reminder.status === 'pagado' ? 'bg-green-600 text-white' : isOverdue ? 'bg-red-600 text-white' : isDueSoon ? 'bg-yellow-600 text-white' : 'bg-blue-600 text-white'}`}>
-                              {reminder.status === 'pagado' ? 'Pagado' : isOverdue ? `Vencido ${Math.abs(daysUntil)}d` : isDueSoon ? `Vence en ${daysUntil}d` : `En ${daysUntil} días`}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-orange-600">${formatCurrency(reminder.amount)}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1 mb-3 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Categoría:</span>
-                            <span className="font-semibold">{reminder.category}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Frecuencia:</span>
-                            <span className="font-semibold capitalize">{reminder.frequency}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Vence:</span>
-                            <span className="font-semibold">{new Date(reminder.dueDate).toLocaleDateString('es-ES')}</span>
-                          </div>
-                          {reminder.status === 'pagado' && reminder.paidDate && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Pagado:</span>
-                              <span className="font-semibold text-green-600">{new Date(reminder.paidDate).toLocaleDateString('es-ES')}</span>
+                      <div key={reminder.id} className={`border-2 rounded-lg p-3 sm:p-4 ${reminder.status === 'pagado' ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-300 bg-red-50' : isDueSoon ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200 bg-white'}`}>
+                        <div className="flex flex-col sm:flex-row justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="font-bold text-sm sm:text-base">{reminder.name}</span>
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${reminder.status === 'pagado' ? 'bg-green-100 text-green-800' : isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                                {reminder.status === 'pagado' ? 'Pagado' : isOverdue ? `Vencido (${Math.abs(daysUntil)}d)` : isDueSoon ? `${daysUntil}d` : `${daysUntil}d`}
+                              </span>
                             </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => toggleReminderStatus(reminder.id, reminder.status, reminder)} 
-                            className={`flex-1 py-2 rounded-lg font-semibold text-sm ${reminder.status === 'pagado' ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-green-500 text-white hover:bg-green-600'}`}
-                          >
-                            {reminder.status === 'pagado' ? 'Desmarcar' : 'Marcar Pagado'}
-                          </button>
-                          <button 
-                            onClick={() => deleteReminder(reminder.id)} 
-                            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div><span className="text-gray-500">Categoría:</span> <span className="font-semibold">{reminder.category}</span></div>
+                              <div><span className="text-gray-500">Frecuencia:</span> <span className="font-semibold capitalize">{reminder.frequency}</span></div>
+                              <div><span className="text-gray-500">Vence:</span> <span className="font-semibold">{new Date(reminder.dueDate).toLocaleDateString('es-ES')}</span></div>
+                            </div>
+                          </div>
+                          <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
+                            <p className="text-xl sm:text-2xl font-bold text-orange-600">${formatCurrency(reminder.amount)}</p>
+                            <div className="flex gap-2">
+                              <button onClick={() => toggleReminderStatus(reminder.id, reminder.status, reminder)} className={`px-3 py-1 sm:py-2 rounded-lg font-semibold text-xs ${reminder.status === 'pagado' ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-green-500 text-white hover:bg-green-600'}`}>
+                                {reminder.status === 'pagado' ? 'Desmarcar' : 'Pagar'}
+                              </button>
+                              <button onClick={() => deleteReminder(reminder.id)} className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
