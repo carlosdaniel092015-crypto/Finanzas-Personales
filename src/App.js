@@ -895,44 +895,31 @@ export default function FinanceTracker() {
                     const isDueSoon = daysUntil >= 0 && daysUntil <= 7;
                     
                     return (
-                      <div key={reminder.id} className={`border-2 rounded-lg p-3 ${reminder.status === 'pagado' ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-300 bg-red-50' : isDueSoon ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200 bg-white'}`}>
-                        <div className="flex flex-col gap-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-sm sm:text-base mb-1 break-words">{reminder.name}</h3>
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${reminder.status === 'pagado' ? 'bg-green-100 text-green-800' : isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
-                                {reminder.status === 'pagado' ? 'Pagado' : isOverdue ? `Vencido ${Math.abs(daysUntil)}d` : isDueSoon ? `Vence en ${daysUntil}d` : `${daysUntil} días`}
+                      <div key={reminder.id} className={`border-2 rounded-lg p-3 sm:p-4 ${reminder.status === 'pagado' ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-300 bg-red-50' : isDueSoon ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200 bg-white'}`}>
+                        <div className="flex flex-col sm:flex-row justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="font-bold text-sm sm:text-base">{reminder.name}</span>
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${reminder.status === 'pagado' ? 'bg-green-100 text-green-800' : isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                                {reminder.status === 'pagado' ? 'Pagado' : isOverdue ? `Vencido (${Math.abs(daysUntil)}d)` : isDueSoon ? `${daysUntil}d` : `${daysUntil}d`}
                               </span>
                             </div>
-                            <p className="text-lg sm:text-xl font-bold text-orange-600 whitespace-nowrap">${formatCurrency(reminder.amount)}</p>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 gap-1 text-xs">
-                            <div className="flex flex-wrap gap-x-3 gap-y-1">
-                              <span><span className="text-gray-500">Categoría:</span> <span className="font-semibold">{reminder.category}</span></span>
-                              <span><span className="text-gray-500">Frecuencia:</span> <span className="font-semibold capitalize">{reminder.frequency}</span></span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">Vence:</span> <span className="font-semibold">{new Date(reminder.dueDate).toLocaleDateString('es-ES')}</span>
-                              {reminder.status === 'pagado' && reminder.paidDate && (
-                                <span className="ml-2"><span className="text-gray-500">Pagado:</span> <span className="font-semibold text-green-600">{new Date(reminder.paidDate).toLocaleDateString('es-ES')}</span></span>
-                              )}
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div><span className="text-gray-500">Categoría:</span> <span className="font-semibold">{reminder.category}</span></div>
+                              <div><span className="text-gray-500">Frecuencia:</span> <span className="font-semibold capitalize">{reminder.frequency}</span></div>
+                              <div><span className="text-gray-500">Vence:</span> <span className="font-semibold">{new Date(reminder.dueDate).toLocaleDateString('es-ES')}</span></div>
                             </div>
                           </div>
-
-                          <div className="flex gap-2 pt-2 border-t border-gray-200">
-                            <button 
-                              onClick={() => toggleReminderStatus(reminder.id, reminder.status, reminder)} 
-                              className={`flex-1 px-3 py-2 rounded-lg font-semibold text-xs ${reminder.status === 'pagado' ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-green-500 text-white hover:bg-green-600'}`}
-                            >
-                              {reminder.status === 'pagado' ? 'Desmarcar' : 'Marcar Pagado'}
-                            </button>
-                            <button 
-                              onClick={() => deleteReminder(reminder.id)} 
-                              className="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 flex items-center gap-1 text-xs"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                          <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
+                            <p className="text-xl sm:text-2xl font-bold text-orange-600">${formatCurrency(reminder.amount)}</p>
+                            <div className="flex gap-2">
+                              <button onClick={() => toggleReminderStatus(reminder.id, reminder.status, reminder)} className={`px-3 py-1 sm:py-2 rounded-lg font-semibold text-xs ${reminder.status === 'pagado' ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-green-500 text-white hover:bg-green-600'}`}>
+                                {reminder.status === 'pagado' ? 'Desmarcar' : 'Pagar'}
+                              </button>
+                              <button onClick={() => deleteReminder(reminder.id)} className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
