@@ -15,7 +15,8 @@ import {
   updateDoc, 
   query, 
   where, 
-  onSnapshot 
+  onSnapshot,
+  getDocs 
 } from 'firebase/firestore';
 
 export default function FinanceTracker() {
@@ -52,6 +53,7 @@ export default function FinanceTracker() {
   const [reminderCategory, setReminderCategory] = useState('');
   const [reminderFrequency, setReminderFrequency] = useState('unica');
   const [showRemindersModule, setShowRemindersModule] = useState(false);
+  const [reminderFilter, setReminderFilter] = useState('todos');
 
   const AUTHORIZED_EMAILS = ['carlosdaniel092015@gmail.com', 'stephanymartinezjaquez30@gmail.com'];
   const REMINDERS_AUTHORIZED_EMAIL = 'carlosdaniel092015@gmail.com';
@@ -251,12 +253,28 @@ export default function FinanceTracker() {
   };
 
   const deleteReminder = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este recordatorio?')) {
+    if (!window.confirm('¿Estás seguro de eliminar este recordatorio? Esto también eliminará las transacciones relacionadas.')) {
       return;
     }
 
     try {
+      // Eliminar el recordatorio
       await deleteDoc(doc(db, 'reminders', id));
+      
+      // Eliminar transacciones relacionadas
+      const q = query(
+        collection(db, 'transactions'),
+        where('userId', '==', currentUser.uid),
+        where('reminderId', '==', id)
+      );
+      
+      const snapshot = await getDocs(q);
+      const deletePromises = snapshot.docs.map(docSnapshot => 
+        deleteDoc(doc(db, 'transactions', docSnapshot.id))
+      );
+      await Promise.all(deletePromises);
+      
+      alert('Recordatorio y transacciones relacionadas eliminadas');
     } catch (error) {
       console.error('Error al eliminar recordatorio:', error);
       alert('Error al eliminar el recordatorio');
@@ -331,6 +349,26 @@ export default function FinanceTracker() {
     const diffTime = due - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const filterReminders = () => {
+    return reminders.filter(reminder => {
+      if (reminderFilter === 'todos') return true;
+      
+      const daysUntil = getDaysUntilDue(reminder.dueDate);
+      
+      if (reminderFilter === 'pendientes') {
+        return reminder.status === 'pendiente' && daysUntil > 7;
+      } else if (reminderFilter === 'pronto') {
+        return reminder.status === 'pendiente' && daysUntil >= 0 && daysUntil <= 7;
+      } else if (reminderFilter === 'vencidos') {
+        return reminder.status === 'pendiente' && daysUntil < 0;
+      } else if (reminderFilter === 'pagados') {
+        return reminder.status === 'pagado';
+      }
+      
+      return true;
+    });
   };
 
   const addTransaction = async () => {
@@ -1364,6 +1402,49 @@ export default function FinanceTracker() {
               })()}
             </div>
 
+            {/* Dashboard por Categoría */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Recordatorios por Categoría</h3>
+              <div className="space-y-3">
+                {(() => {
+                  const categoryTotals = {};
+                  const categoryCounts = {};
+                  
+                  reminders.filter(r => r.status === 'pendiente').forEach(r => {
+                    categoryTotals[r.category] = (categoryTotals[r.category] || 0) + r.amount;
+                    categoryCounts[r.category] = (categoryCounts[r.category] || 0) + 1;
+                  });
+                  
+                  const sortedCategories = Object.entries(categoryTotals)
+                    .sort((a, b) => b[1] - a[1]);
+
+                  const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                  return sortedCategories.length > 0 ? (
+                    sortedCategories.map(([category, amount]) => (
+                      <div key={category} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-700">{category}</span>
+                            <span className="text-xs text-gray-500">({categoryCounts[category]} recordatorios)</span>
+                          </div>
+                          <span className="text-gray-600 font-bold">${formatCurrency(amount)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div
+                            className="bg-gradient-to-r from-orange-500 to-red-600 h-3 rounded-full transition-all"
+                            style={{ width: `${(amount / maxAmount) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No hay recordatorios pendientes</p>
+                  );
+                })()}
+              </div>
+            </div>
+
             {/* Agregar Recordatorio */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-xl font-bold text-gray-800 mb-4">Agregar Recordatorio</h2>
@@ -1435,12 +1516,59 @@ export default function FinanceTracker() {
 
             {/* Lista de Recordatorios */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Mis Recordatorios</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">Mis Recordatorios</h2>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => setReminderFilter('todos')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                      reminderFilter === 'todos' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Todos ({reminders.length})
+                  </button>
+                  <button
+                    onClick={() => setReminderFilter('pendientes')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                      reminderFilter === 'pendientes' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Pendientes ({reminders.filter(r => r.status === 'pendiente' && getDaysUntilDue(r.dueDate) > 7).length})
+                  </button>
+                  <button
+                    onClick={() => setReminderFilter('pronto')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                      reminderFilter === 'pronto' ? 'bg-yellow-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Pronto a Vencer ({reminders.filter(r => {
+                      const days = getDaysUntilDue(r.dueDate);
+                      return r.status === 'pendiente' && days >= 0 && days <= 7;
+                    }).length})
+                  </button>
+                  <button
+                    onClick={() => setReminderFilter('vencidos')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                      reminderFilter === 'vencidos' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Vencidos ({reminders.filter(r => r.status === 'pendiente' && getDaysUntilDue(r.dueDate) < 0).length})
+                  </button>
+                  <button
+                    onClick={() => setReminderFilter('pagados')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                      reminderFilter === 'pagados' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Pagados ({reminders.filter(r => r.status === 'pagado').length})
+                  </button>
+                </div>
+              </div>
               <div className="space-y-3">
-                {reminders.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">No hay recordatorios registrados</p>
+                {filterReminders().length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No hay recordatorios en esta categoría</p>
                 ) : (
-                  reminders.map((reminder) => {
+                  filterReminders().map((reminder) => {
                     const daysUntil = getDaysUntilDue(reminder.dueDate);
                     const isOverdue = daysUntil < 0;
                     const isDueSoon = daysUntil >= 0 && daysUntil <= 7;
@@ -1514,7 +1642,7 @@ export default function FinanceTracker() {
                             </p>
                             <div className="flex gap-2">
                               <button
-                                onClick={() => toggleReminderStatus(reminder.id, reminder.status)}
+                                onClick={() => toggleReminderStatus(reminder.id, reminder.status, reminder)}
                                 className={`px-4 py-2 rounded-lg font-semibold transition ${
                                   reminder.status === 'pagado'
                                     ? 'bg-yellow-500 text-white hover:bg-yellow-600'
