@@ -753,18 +753,18 @@ export default function FinanceTracker() {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <div className="bg-white shadow-md sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-2 sm:px-4">
-          <div className="flex justify-between items-center py-3 sm:py-4">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center gap-3">
+              <User className="w-8 h-8 text-blue-600" />
               <div>
-                <h1 className="text-base sm:text-xl font-bold text-gray-800">Mis Finanzas</h1>
-                <p className="text-xs text-gray-600 hidden sm:block">{currentUser?.email}</p>
+                <h1 className="text-xl font-bold text-gray-800">Mis Finanzas</h1>
+                <p className="text-xs text-gray-600">{currentUser?.email}</p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1 sm:gap-2 bg-red-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-red-600 transition text-sm"
+              className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Cerrar Sesión</span>
@@ -772,44 +772,44 @@ export default function FinanceTracker() {
           </div>
 
           {/* Tabs de navegación */}
-          <div className="flex gap-1 sm:gap-2 border-t border-gray-200 pt-2 overflow-x-auto pb-1">
+          <div className="flex gap-2 border-t border-gray-200 pt-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab('finanzas')}
-              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-base ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap ${
                 activeTab === 'finanzas'
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">Finanzas</span>
+              <Wallet className="w-5 h-5" />
+              Finanzas
             </button>
             {showSavingsModule && (
               <button
                 onClick={() => setActiveTab('ahorros')}
-                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-base ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap ${
                   activeTab === 'ahorros'
                     ? 'bg-purple-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <PiggyBank className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline">Ahorros</span>
+                <PiggyBank className="w-5 h-5" />
+                Ahorros
               </button>
             )}
             {showRemindersModule && (
               <button
                 onClick={() => setActiveTab('recordatorios')}
-                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-base ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap ${
                   activeTab === 'recordatorios'
                     ? 'bg-orange-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                <span className="hidden sm:inline">Recordatorios</span>
+                Recordatorios
               </button>
             )}
           </div>
@@ -817,17 +817,17 @@ export default function FinanceTracker() {
       </div>
 
       {/* Contenido */}
-      <div className="max-w-6xl mx-auto p-2 sm:p-4">
+      <div className="max-w-6xl mx-auto p-4">
         {activeTab === 'finanzas' ? (
           <>
             {/* Dashboard de Finanzas Integrado */}
-            <div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-4 sm:mb-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Dashboard de Finanzas</h2>
-                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Dashboard de Finanzas</h2>
+                <div className="flex gap-2">
                   <button
                     onClick={() => setDateFilter('dia')}
-                    className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
                       dateFilter === 'dia' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
@@ -835,7 +835,7 @@ export default function FinanceTracker() {
                   </button>
                   <button
                     onClick={() => setDateFilter('mes')}
-                    className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
                       dateFilter === 'mes' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
@@ -843,7 +843,7 @@ export default function FinanceTracker() {
                   </button>
                   <button
                     onClick={() => setDateFilter('ano')}
-                    className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
                       dateFilter === 'ano' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
@@ -853,42 +853,42 @@ export default function FinanceTracker() {
                     type="date"
                     value={selectedDate.toISOString().split('T')[0]}
                     onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm flex-1 sm:flex-none"
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
                   />
                 </div>
               </div>
 
               {/* KPIs principales */}
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
                 <div className="text-center">
                   <p className="text-gray-600 text-xs mb-1">Total Ingresos</p>
-                  <p className="text-lg sm:text-2xl font-bold text-green-600">${formatCurrency(totalIngresos)}</p>
+                  <p className="text-2xl font-bold text-green-600">${formatCurrency(totalIngresos)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-gray-600 text-xs mb-1">Total Gastos</p>
-                  <p className="text-lg sm:text-2xl font-bold text-red-600">${formatCurrency(totalGastos)}</p>
+                  <p className="text-2xl font-bold text-red-600">${formatCurrency(totalGastos)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-gray-600 text-xs mb-1">Balance</p>
-                  <p className={`text-lg sm:text-2xl font-bold ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                  <p className={`text-2xl font-bold ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
                     ${formatCurrency(Math.abs(balance))}
                   </p>
                 </div>
                 <div className="text-center">
                   <p className="text-gray-600 text-xs mb-1">Pendientes</p>
-                  <p className="text-lg sm:text-2xl font-bold text-yellow-600">
+                  <p className="text-2xl font-bold text-yellow-600">
                     {filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pendiente').length}
                   </p>
                 </div>
                 <div className="text-center">
                   <p className="text-gray-600 text-xs mb-1">Pagados</p>
-                  <p className="text-lg sm:text-2xl font-bold text-green-600">
+                  <p className="text-2xl font-bold text-green-600">
                     {filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pagado').length}
                   </p>
                 </div>
                 <div className="text-center">
                   <p className="text-gray-600 text-xs mb-1">Transacciones</p>
-                  <p className="text-lg sm:text-2xl font-bold text-purple-600">{filteredTransactions.length}</p>
+                  <p className="text-2xl font-bold text-purple-600">{filteredTransactions.length}</p>
                 </div>
               </div>
 
@@ -1595,13 +1595,13 @@ export default function FinanceTracker() {
             </div>
 
             {/* Lista de Recordatorios */}
-            <div className="bg-white rounded-lg shadow-md p-3 sm:p-6">
-              <div className="flex flex-col gap-3 mb-4">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-800">Mis Recordatorios</h2>
-                <div className="flex gap-1 sm:gap-2 flex-wrap">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">Mis Recordatorios</h2>
+                <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => setReminderFilter('todos')}
-                    className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
                       reminderFilter === 'todos' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
@@ -1609,41 +1609,38 @@ export default function FinanceTracker() {
                   </button>
                   <button
                     onClick={() => setReminderFilter('pendientes')}
-                    className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
                       reminderFilter === 'pendientes' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    <span className="hidden sm:inline">Pendientes</span>
-                    <span className="sm:hidden">Pend.</span> ({reminders.filter(r => r.status === 'pendiente' && getDaysUntilDue(r.dueDate) > 7).length})
+                    Pendientes ({reminders.filter(r => r.status === 'pendiente' && getDaysUntilDue(r.dueDate) > 7).length})
                   </button>
                   <button
                     onClick={() => setReminderFilter('pronto')}
-                    className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
                       reminderFilter === 'pronto' ? 'bg-yellow-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    Pronto ({reminders.filter(r => {
+                    Pronto a Vencer ({reminders.filter(r => {
                       const days = getDaysUntilDue(r.dueDate);
                       return r.status === 'pendiente' && days >= 0 && days <= 7;
                     }).length})
                   </button>
                   <button
                     onClick={() => setReminderFilter('vencidos')}
-                    className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
                       reminderFilter === 'vencidos' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    <span className="hidden sm:inline">Vencidos</span>
-                    <span className="sm:hidden">Venc.</span> ({reminders.filter(r => r.status === 'pendiente' && getDaysUntilDue(r.dueDate) < 0).length})
+                    Vencidos ({reminders.filter(r => r.status === 'pendiente' && getDaysUntilDue(r.dueDate) < 0).length})
                   </button>
                   <button
                     onClick={() => setReminderFilter('pagados')}
-                    className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
                       reminderFilter === 'pagados' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    <span className="hidden sm:inline">Pagados</span>
-                    <span className="sm:hidden">Pag.</span> ({reminders.filter(r => r.status === 'pagado').length})
+                    Pagados ({reminders.filter(r => r.status === 'pagado').length})
                   </button>
                 </div>
               </div>
