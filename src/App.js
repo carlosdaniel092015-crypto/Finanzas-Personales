@@ -44,8 +44,20 @@ export default function FinanceTracker() {
   const [showSavingsModule, setShowSavingsModule] = useState(false);
   const [activeTab, setActiveTab] = useState('finanzas');
 
+  // Estados para el módulo de recordatorios
+  const [reminders, setReminders] = useState([]);
+  const [reminderName, setReminderName] = useState('');
+  const [reminderAmount, setReminderAmount] = useState('');
+  const [reminderDueDate, setReminderDueDate] = useState('');
+  const [reminderCategory, setReminderCategory] = useState('');
+  const [reminderFrequency, setReminderFrequency] = useState('unica');
+  const [showRemindersModule, setShowRemindersModule] = useState(false);
+
   const AUTHORIZED_EMAILS = ['carlosdaniel092015@gmail.com', 'stephanymartinezjaquez30@gmail.com'];
+  const REMINDERS_AUTHORIZED_EMAIL = 'carlosdaniel092015@gmail.com';
   const ANNUAL_RETURN_RATE = 0.11;
+
+  const reminderCategories = ['Préstamos', 'Tarjetas de Crédito', 'Agua', 'Luz', 'Internet', 'Teléfono', 'Cable/TV', 'Streaming', 'Alquiler', 'Seguro', 'Otros'];
 
   const categories = {
     gasto: ['Pasaje', 'Préstamos', 'Tarjetas', 'Alquiler', 'Comidas', 'Streaming', 'Agua', 'Luz', 'Internet', 'Imprevistos', 'Salud', 'Gym', 'Gasolina', 'Vehículo', 'Vacaciones', 'Niños', 'Plan', 'Compras', 'Deportes'],
@@ -59,10 +71,12 @@ export default function FinanceTracker() {
         setCurrentUser(user);
         setShowLogin(false);
         setShowSavingsModule(AUTHORIZED_EMAILS.includes(user.email));
+        setShowRemindersModule(user.email === REMINDERS_AUTHORIZED_EMAIL);
       } else {
         setCurrentUser(null);
         setShowLogin(true);
         setShowSavingsModule(false);
+        setShowRemindersModule(false);
       }
       setLoading(false);
     });
@@ -112,6 +126,29 @@ export default function FinanceTracker() {
 
     return () => unsubscribe();
   }, [currentUser, showSavingsModule]);
+
+  // Escuchar cambios en recordatorios
+  useEffect(() => {
+    if (!currentUser || !showRemindersModule) {
+      setReminders([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'reminders'),
+      where('userId', '==', currentUser.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const remindersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+      setReminders(remindersData);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, showRemindersModule]);
 
   const handleRegister = async () => {
     setLoginError('');
@@ -168,10 +205,132 @@ export default function FinanceTracker() {
       await signOut(auth);
       setTransactions([]);
       setSavings([]);
+      setReminders([]);
       setActiveTab('finanzas');
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     }
+  };
+
+  const addReminder = async () => {
+    if (!reminderName || !reminderAmount || !reminderDueDate || !reminderCategory) {
+      alert('Por favor completa todos los campos');
+      return;
+    }
+
+    const cleanAmount = reminderAmount.replace(/,/g, '').replace(/[^\d.]/g, '');
+    const numericAmount = parseFloat(cleanAmount);
+
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      alert('Por favor ingresa un monto válido mayor a 0');
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'reminders'), {
+        userId: currentUser.uid,
+        name: reminderName,
+        amount: numericAmount,
+        dueDate: reminderDueDate,
+        category: reminderCategory,
+        frequency: reminderFrequency,
+        status: 'pendiente',
+        createdAt: new Date()
+      });
+
+      setReminderName('');
+      setReminderAmount('');
+      setReminderDueDate('');
+      setReminderCategory('');
+      setReminderFrequency('unica');
+      alert('Recordatorio agregado exitosamente');
+    } catch (error) {
+      console.error('Error al agregar recordatorio:', error);
+      alert('Error al agregar el recordatorio: ' + error.message);
+    }
+  };
+
+  const deleteReminder = async (id) => {
+    if (!window.confirm('¿Estás seguro de eliminar este recordatorio?')) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'reminders', id));
+    } catch (error) {
+      console.error('Error al eliminar recordatorio:', error);
+      alert('Error al eliminar el recordatorio');
+    }
+  };
+
+  const toggleReminderStatus = async (id, currentStatus, reminder) => {
+    try {
+      const newStatus = currentStatus === 'pagado' ? 'pendiente' : 'pagado';
+      
+      await updateDoc(doc(db, 'reminders', id), {
+        status: newStatus,
+        paidDate: newStatus === 'pagado' ? new Date().toISOString() : null
+      });
+
+      // Si se marca como pagado, crear transacción en finanzas
+      if (newStatus === 'pagado') {
+        await addDoc(collection(db, 'transactions'), {
+          userId: currentUser.uid,
+          type: 'gasto',
+          amount: reminder.amount,
+          category: reminder.category,
+          description: `Pago: ${reminder.name}`,
+          status: 'pagado',
+          date: new Date().toISOString(),
+          createdAt: new Date(),
+          fromReminder: true,
+          reminderId: id
+        });
+        alert('Pago registrado y agregado a tus finanzas');
+      } else {
+        // Si se desmarca como pagado, eliminar la transacción relacionada
+        const q = query(
+          collection(db, 'transactions'),
+          where('userId', '==', currentUser.uid),
+          where('reminderId', '==', id)
+        );
+        const snapshot = await onSnapshot(q, async (querySnapshot) => {
+          querySnapshot.forEach(async (docSnapshot) => {
+            await deleteDoc(doc(db, 'transactions', docSnapshot.id));
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error al actualizar estado:', error);
+      alert('Error al actualizar el estado');
+    }
+  };
+
+  const handleReminderAmountInput = (value) => {
+    const cleaned = value.replace(/[^\d.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      return;
+    }
+    
+    let formatted = parts[0];
+    if (formatted) {
+      formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    
+    if (parts.length === 2) {
+      formatted = formatted + '.' + parts[1].slice(0, 2);
+    }
+    
+    setReminderAmount(formatted);
+  };
+
+  const getDaysUntilDue = (dueDate) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = due - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   const addTransaction = async () => {
@@ -495,10 +654,10 @@ export default function FinanceTracker() {
           </div>
 
           {/* Tabs de navegación */}
-          <div className="flex gap-2 border-t border-gray-200 pt-2">
+          <div className="flex gap-2 border-t border-gray-200 pt-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab('finanzas')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap ${
                 activeTab === 'finanzas'
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -510,7 +669,7 @@ export default function FinanceTracker() {
             {showSavingsModule && (
               <button
                 onClick={() => setActiveTab('ahorros')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap ${
                   activeTab === 'ahorros'
                     ? 'bg-purple-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -518,6 +677,21 @@ export default function FinanceTracker() {
               >
                 <PiggyBank className="w-5 h-5" />
                 Ahorros
+              </button>
+            )}
+            {showRemindersModule && (
+              <button
+                onClick={() => setActiveTab('recordatorios')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap ${
+                  activeTab === 'recordatorios'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Recordatorios
               </button>
             )}
           </div>
@@ -528,160 +702,159 @@ export default function FinanceTracker() {
       <div className="max-w-6xl mx-auto p-4">
         {activeTab === 'finanzas' ? (
           <>
-            {/* Dashboard de Finanzas */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-green-500 text-white rounded-lg shadow-lg p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-green-100 text-sm">Total Ingresos</p>
-                    <p className="text-3xl font-bold">${formatCurrency(totalIngresos)}</p>
-                  </div>
-                  <TrendingUp className="w-12 h-12 text-green-200" />
-                </div>
-              </div>
-              <div className="bg-red-500 text-white rounded-lg shadow-lg p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-red-100 text-sm">Total Gastos</p>
-                    <p className="text-3xl font-bold">${formatCurrency(totalGastos)}</p>
-                  </div>
-                  <TrendingDown className="w-12 h-12 text-red-200" />
-                </div>
-              </div>
-              <div className={`${balance >= 0 ? 'bg-blue-500' : 'bg-orange-500'} text-white rounded-lg shadow-lg p-6`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-blue-100 text-sm">Balance</p>
-                    <p className="text-3xl font-bold">${formatCurrency(balance)}</p>
-                  </div>
-                  <DollarSign className="w-12 h-12 text-blue-200" />
-                </div>
-              </div>
-            </div>
-
-            {/* Dashboard Adicional de Finanzas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-yellow-500">
-                <p className="text-gray-600 text-sm mb-1">Gastos Pendientes</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  ${formatCurrency(
-                    filteredTransactions
-                      .filter(t => t.type === 'gasto' && t.status === 'pendiente')
-                      .reduce((sum, t) => sum + t.amount, 0)
-                  )}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pendiente').length} pendientes
-                </p>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
-                <p className="text-gray-600 text-sm mb-1">Gastos Pagados</p>
-                <p className="text-2xl font-bold text-green-600">
-                  ${formatCurrency(totalGastos)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pagado').length} pagados
-                </p>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
-                <p className="text-gray-600 text-sm mb-1">Total Transacciones</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {filteredTransactions.length}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {filteredTransactions.filter(t => t.type === 'ingreso').length} ingresos / {filteredTransactions.filter(t => t.type === 'gasto').length} gastos
-                </p>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-500">
-                <p className="text-gray-600 text-sm mb-1">Promedio Diario</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  ${formatCurrency(
-                    dateFilter === 'mes' ? totalGastos / 30 :
-                    dateFilter === 'ano' ? totalGastos / 365 :
-                    totalGastos
-                  )}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Gasto promedio</p>
-              </div>
-            </div>
-
-            {/* Gráfico de categorías más gastadas */}
+            {/* Dashboard de Finanzas Integrado */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Top 5 Categorías de Gastos</h3>
-              <div className="space-y-3">
-                {(() => {
-                  const categoryTotals = {};
-                  filteredTransactions
-                    .filter(t => t.type === 'gasto' && t.status === 'pagado')
-                    .forEach(t => {
-                      categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-                    });
-                  
-                  const sortedCategories = Object.entries(categoryTotals)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 5);
-
-                  const maxAmount = sortedCategories[0]?.[1] || 1;
-
-                  return sortedCategories.length > 0 ? (
-                    sortedCategories.map(([category, amount]) => (
-                      <div key={category} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-semibold text-gray-700">{category}</span>
-                          <span className="text-gray-600">${formatCurrency(amount)}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-gradient-to-r from-red-500 to-red-600 h-2 rounded-full"
-                            style={{ width: `${(amount / maxAmount) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-center py-4">No hay datos de gastos</p>
-                  );
-                })()}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Dashboard de Finanzas</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDateFilter('dia')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                      dateFilter === 'dia' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Día
+                  </button>
+                  <button
+                    onClick={() => setDateFilter('mes')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                      dateFilter === 'mes' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Mes
+                  </button>
+                  <button
+                    onClick={() => setDateFilter('ano')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
+                      dateFilter === 'ano' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Año
+                  </button>
+                  <input
+                    type="date"
+                    value={selectedDate.toISOString().split('T')[0]}
+                    onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Filtros */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Filtrar por Período</h2>
-              <div className="flex flex-wrap gap-4">
-                <button
-                  onClick={() => setDateFilter('dia')}
-                  className={`px-6 py-2 rounded-lg font-semibold transition ${
-                    dateFilter === 'dia' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  Día
-                </button>
-                <button
-                  onClick={() => setDateFilter('mes')}
-                  className={`px-6 py-2 rounded-lg font-semibold transition ${
-                    dateFilter === 'mes' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  Mes
-                </button>
-                <button
-                  onClick={() => setDateFilter('ano')}
-                  className={`px-6 py-2 rounded-lg font-semibold transition ${
-                    dateFilter === 'ano' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  Año
-                </button>
-                <input
-                  type="date"
-                  value={selectedDate.toISOString().split('T')[0]}
-                  onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
+              {/* KPIs principales */}
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+                <div className="text-center">
+                  <p className="text-gray-600 text-xs mb-1">Total Ingresos</p>
+                  <p className="text-2xl font-bold text-green-600">${formatCurrency(totalIngresos)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-gray-600 text-xs mb-1">Total Gastos</p>
+                  <p className="text-2xl font-bold text-red-600">${formatCurrency(totalGastos)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-gray-600 text-xs mb-1">Balance</p>
+                  <p className={`text-2xl font-bold ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                    ${formatCurrency(Math.abs(balance))}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-gray-600 text-xs mb-1">Pendientes</p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pendiente').length}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-gray-600 text-xs mb-1">Pagados</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {filteredTransactions.filter(t => t.type === 'gasto' && t.status === 'pagado').length}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-gray-600 text-xs mb-1">Transacciones</p>
+                  <p className="text-2xl font-bold text-purple-600">{filteredTransactions.length}</p>
+                </div>
+              </div>
+
+              {/* Gráficos */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Gráfico de categorías de gastos */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Gastos por Categoría</h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const categoryTotals = {};
+                      filteredTransactions
+                        .filter(t => t.type === 'gasto' && t.status === 'pagado')
+                        .forEach(t => {
+                          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                        });
+                      
+                      const sortedCategories = Object.entries(categoryTotals)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6);
+
+                      const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                      return sortedCategories.length > 0 ? (
+                        sortedCategories.map(([category, amount]) => (
+                          <div key={category} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-semibold text-gray-700">{category}</span>
+                              <span className="text-gray-600">${formatCurrency(amount)}</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3">
+                              <div
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all"
+                                style={{ width: `${(amount / maxAmount) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">No hay datos de gastos</p>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Gráfico de ingresos por categoría */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Ingresos por Categoría</h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const categoryTotals = {};
+                      filteredTransactions
+                        .filter(t => t.type === 'ingreso')
+                        .forEach(t => {
+                          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                        });
+                      
+                      const sortedCategories = Object.entries(categoryTotals)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6);
+
+                      const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                      return sortedCategories.length > 0 ? (
+                        sortedCategories.map(([category, amount]) => (
+                          <div key={category} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-semibold text-gray-700">{category}</span>
+                              <span className="text-gray-600">${formatCurrency(amount)}</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3">
+                              <div
+                                className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all"
+                                style={{ width: `${(amount / maxAmount) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">No hay datos de ingresos</p>
+                      );
+                    })()}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -830,7 +1003,7 @@ export default function FinanceTracker() {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'ahorros' ? (
           <>
             {/* Módulo de Ahorros */}
             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg shadow-lg p-6 mb-6">
@@ -867,6 +1040,136 @@ export default function FinanceTracker() {
                   </>
                 );
               })()}
+            </div>
+
+            {/* Dashboard Adicional de Ahorros */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {(() => {
+                const { history } = calculateCompoundInterest();
+                const totalSavings = savings.length;
+                const avgSaving = totalSavings > 0 ? savings.reduce((sum, s) => sum + s.amount, 0) / totalSavings : 0;
+                const oldestSaving = history.length > 0 ? history[0] : null;
+                const newestSaving = history.length > 0 ? history[history.length - 1] : null;
+                
+                // Calcular proyección a 1 año
+                const { totalInvested } = calculateCompoundInterest();
+                const dailyRate = Math.pow(1 + ANNUAL_RETURN_RATE, 1/365) - 1;
+                const projectedIn1Year = totalInvested * Math.pow(1 + dailyRate, 365);
+                const projectedInterest = projectedIn1Year - totalInvested;
+
+                return (
+                  <>
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-indigo-500">
+                      <p className="text-gray-600 text-sm mb-1">Total de Ahorros</p>
+                      <p className="text-2xl font-bold text-indigo-600">{totalSavings}</p>
+                      <p className="text-xs text-gray-500 mt-1">Depósitos realizados</p>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-cyan-500">
+                      <p className="text-gray-600 text-sm mb-1">Ahorro Promedio</p>
+                      <p className="text-2xl font-bold text-cyan-600">${formatCurrency(avgSaving)}</p>
+                      <p className="text-xs text-gray-500 mt-1">Por depósito</p>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-emerald-500">
+                      <p className="text-gray-600 text-sm mb-1">Ahorro Más Antiguo</p>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        {oldestSaving ? `${oldestSaving.daysElapsed} días` : '0'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {oldestSaving ? `+${formatCurrency(oldestSaving.interestEarned)}` : 'N/A'}
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-pink-500">
+                      <p className="text-gray-600 text-sm mb-1">Proyección 1 Año</p>
+                      <p className="text-2xl font-bold text-pink-600">${formatCurrency(projectedIn1Year)}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        +${formatCurrency(projectedInterest)} interés
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Gráfico de rendimiento por ahorro */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Rendimiento por Ahorro (Top 5)</h3>
+              <div className="space-y-3">
+                {(() => {
+                  const { history } = calculateCompoundInterest();
+                  const topSavings = [...history]
+                    .sort((a, b) => b.interestEarned - a.interestEarned)
+                    .slice(0, 5);
+
+                  const maxInterest = topSavings[0]?.interestEarned || 1;
+
+                  return topSavings.length > 0 ? (
+                    topSavings.map((saving) => (
+                      <div key={saving.id} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-semibold text-gray-700">{saving.name}</span>
+                          <div className="text-right">
+                            <span className="text-green-600 font-bold">+${formatCurrency(saving.interestEarned)}</span>
+                            <span className="text-gray-500 text-xs ml-2">
+                              ({((saving.interestEarned / saving.amount) * 100).toFixed(2)}%)
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full"
+                            style={{ width: `${(saving.interestEarned / maxInterest) * 100}%` }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>{saving.daysElapsed} días</span>
+                          <span>Capital: ${formatCurrency(saving.amount)}</span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No hay datos de ahorros</p>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Estadísticas de crecimiento */}
+            <div className="bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg shadow-md p-6 mb-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">📈 Análisis de Crecimiento</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(() => {
+                  const { totalInvested, totalInterest, accumulated } = calculateCompoundInterest();
+                  const dailyRate = Math.pow(1 + ANNUAL_RETURN_RATE, 1/365) - 1;
+                  
+                  // Proyecciones
+                  const in6Months = totalInvested * Math.pow(1 + dailyRate, 180);
+                  const in1Year = totalInvested * Math.pow(1 + dailyRate, 365);
+                  const in2Years = totalInvested * Math.pow(1 + dailyRate, 730);
+
+                  return (
+                    <>
+                      <div className="bg-white rounded-lg p-4">
+                        <p className="text-gray-600 text-sm mb-2">En 6 meses</p>
+                        <p className="text-xl font-bold text-purple-600">${formatCurrency(in6Months)}</p>
+                        <p className="text-xs text-green-600">+${formatCurrency(in6Months - totalInvested)}</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-4">
+                        <p className="text-gray-600 text-sm mb-2">En 1 año</p>
+                        <p className="text-xl font-bold text-indigo-600">${formatCurrency(in1Year)}</p>
+                        <p className="text-xs text-green-600">+${formatCurrency(in1Year - totalInvested)}</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-4">
+                        <p className="text-gray-600 text-sm mb-2">En 2 años</p>
+                        <p className="text-xl font-bold text-blue-600">${formatCurrency(in2Years)}</p>
+                        <p className="text-xs text-green-600">+${formatCurrency(in2Years - totalInvested)}</p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
 
             {/* Agregar Ahorro */}
@@ -993,6 +1296,245 @@ export default function FinanceTracker() {
                       </div>
                     </div>
                   ))
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Módulo de Recordatorios */}
+            <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg shadow-lg p-6 mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <div>
+                  <h2 className="text-2xl font-bold">Recordatorios de Pagos</h2>
+                  <p className="text-orange-100">Préstamos, Tarjetas y Servicios</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Dashboard de Recordatorios */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {(() => {
+                const totalReminders = reminders.length;
+                const pendingReminders = reminders.filter(r => r.status === 'pendiente');
+                const paidReminders = reminders.filter(r => r.status === 'pagado');
+                const totalPending = pendingReminders.reduce((sum, r) => sum + r.amount, 0);
+                const overdueReminders = pendingReminders.filter(r => getDaysUntilDue(r.dueDate) < 0);
+                const dueSoonReminders = pendingReminders.filter(r => {
+                  const days = getDaysUntilDue(r.dueDate);
+                  return days >= 0 && days <= 7;
+                });
+
+                return (
+                  <>
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-orange-500">
+                      <p className="text-gray-600 text-sm mb-1">Total Recordatorios</p>
+                      <p className="text-2xl font-bold text-orange-600">{totalReminders}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {pendingReminders.length} pendientes
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-red-500">
+                      <p className="text-gray-600 text-sm mb-1">Monto Pendiente</p>
+                      <p className="text-2xl font-bold text-red-600">${formatCurrency(totalPending)}</p>
+                      <p className="text-xs text-gray-500 mt-1">Por pagar</p>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-yellow-500">
+                      <p className="text-gray-600 text-sm mb-1">Vencen Pronto</p>
+                      <p className="text-2xl font-bold text-yellow-600">{dueSoonReminders.length}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        ${formatCurrency(dueSoonReminders.reduce((sum, r) => sum + r.amount, 0))}
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-500">
+                      <p className="text-gray-600 text-sm mb-1">Vencidos</p>
+                      <p className="text-2xl font-bold text-purple-600">{overdueReminders.length}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        ${formatCurrency(overdueReminders.reduce((sum, r) => sum + r.amount, 0))}
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Agregar Recordatorio */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Agregar Recordatorio</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
+                  <input
+                    type="text"
+                    value={reminderName}
+                    onChange={(e) => setReminderName(e.target.value)}
+                    placeholder="Ej: Pago tarjeta Visa"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Monto</label>
+                  <input
+                    type="text"
+                    value={reminderAmount}
+                    onChange={(e) => handleReminderAmountInput(e.target.value)}
+                    placeholder="5,000.00"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Vencimiento</label>
+                  <input
+                    type="date"
+                    value={reminderDueDate}
+                    onChange={(e) => setReminderDueDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                  <select
+                    value={reminderCategory}
+                    onChange={(e) => setReminderCategory(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="">Seleccionar</option>
+                    {reminderCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Frecuencia</label>
+                  <select
+                    value={reminderFrequency}
+                    onChange={(e) => setReminderFrequency(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="unica">Única vez</option>
+                    <option value="mensual">Mensual</option>
+                    <option value="quincenal">Quincenal</option>
+                    <option value="anual">Anual</option>
+                  </select>
+                </div>
+              </div>
+              <button
+                onClick={addReminder}
+                className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition flex items-center justify-center gap-2"
+              >
+                <PlusCircle className="w-5 h-5" />
+                Agregar Recordatorio
+              </button>
+            </div>
+
+            {/* Lista de Recordatorios */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Mis Recordatorios</h2>
+              <div className="space-y-3">
+                {reminders.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No hay recordatorios registrados</p>
+                ) : (
+                  reminders.map((reminder) => {
+                    const daysUntil = getDaysUntilDue(reminder.dueDate);
+                    const isOverdue = daysUntil < 0;
+                    const isDueSoon = daysUntil >= 0 && daysUntil <= 7;
+                    
+                    return (
+                      <div
+                        key={reminder.id}
+                        className={`border-2 rounded-lg p-4 hover:shadow-lg transition ${
+                          reminder.status === 'pagado' 
+                            ? 'border-green-200 bg-green-50' 
+                            : isOverdue 
+                            ? 'border-red-300 bg-red-50'
+                            : isDueSoon
+                            ? 'border-yellow-300 bg-yellow-50'
+                            : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start flex-wrap gap-4">
+                          <div className="flex-1 min-w-[250px]">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="font-bold text-lg text-gray-800">{reminder.name}</span>
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                reminder.status === 'pagado'
+                                  ? 'bg-green-100 text-green-800'
+                                  : isOverdue
+                                  ? 'bg-red-100 text-red-800'
+                                  : isDueSoon
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {reminder.status === 'pagado' 
+                                  ? 'Pagado' 
+                                  : isOverdue 
+                                  ? `Vencido (${Math.abs(daysUntil)} días)`
+                                  : isDueSoon
+                                  ? `Vence en ${daysUntil} días`
+                                  : `Faltan ${daysUntil} días`
+                                }
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                              <div>
+                                <span className="text-gray-600">Categoría:</span>
+                                <span className="font-semibold ml-2">{reminder.category}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-600">Frecuencia:</span>
+                                <span className="font-semibold ml-2 capitalize">{reminder.frequency}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-600">Vencimiento:</span>
+                                <span className="font-semibold ml-2">
+                                  {new Date(reminder.dueDate).toLocaleDateString('es-ES')}
+                                </span>
+                              </div>
+                              {reminder.status === 'pagado' && reminder.paidDate && (
+                                <div>
+                                  <span className="text-gray-600">Pagado:</span>
+                                  <span className="font-semibold ml-2 text-green-600">
+                                    {new Date(reminder.paidDate).toLocaleDateString('es-ES')}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col items-end gap-2">
+                            <p className="text-2xl font-bold text-orange-600">
+                              ${formatCurrency(reminder.amount)}
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => toggleReminderStatus(reminder.id, reminder.status)}
+                                className={`px-4 py-2 rounded-lg font-semibold transition ${
+                                  reminder.status === 'pagado'
+                                    ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                                    : 'bg-green-500 text-white hover:bg-green-600'
+                                }`}
+                              >
+                                {reminder.status === 'pagado' ? 'Marcar Pendiente' : 'Marcar Pagado'}
+                              </button>
+                              <button
+                                onClick={() => deleteReminder(reminder.id)}
+                                className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
