@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Trash2, DollarSign, LogOut, User, Wallet, PiggyBank } from 'lucide-react';
+import { PlusCircle, Trash2, User, Wallet, PiggyBank } from 'lucide-react';
 
-// Estilos globales para ocultar scrollbar
 const styles = `
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
@@ -13,9 +12,8 @@ const styles = `
 `;
 
 export default function FinanceTracker() {
-  const [currentUser, setCurrentUser] = useState({ uid: 'demo-user', email: 'demo@example.com' });
-  const [showLogin, setShowLogin] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [currentUser] = useState({ uid: 'user-1', email: 'usuario@finanzas.com' });
+  const [loading, setLoading] = useState(true);
   
   const [transactions, setTransactions] = useState([]);
   const [transactionType, setTransactionType] = useState('gasto');
@@ -30,7 +28,6 @@ export default function FinanceTracker() {
   const [savingName, setSavingName] = useState('');
   const [savingAmount, setSavingAmount] = useState('');
   const [savingDate, setSavingDate] = useState(new Date().toISOString().split('T')[0]);
-  const [showSavingsModule] = useState(true);
   const [activeTab, setActiveTab] = useState('finanzas');
 
   const [reminders, setReminders] = useState([]);
@@ -39,7 +36,6 @@ export default function FinanceTracker() {
   const [reminderDueDate, setReminderDueDate] = useState('');
   const [reminderCategory, setReminderCategory] = useState('');
   const [reminderFrequency, setReminderFrequency] = useState('unica');
-  const [showRemindersModule] = useState(true);
   const [reminderFilter, setReminderFilter] = useState('todos');
 
   const ANNUAL_RETURN_RATE = 0.11;
@@ -51,30 +47,59 @@ export default function FinanceTracker() {
     ingreso: ['Ahorros', 'Salario', 'Quincena', 'Quincena + Incentivo', 'Otros', 'Depósito', 'Comisiones', 'Remesas']
   };
 
+  // Cargar datos al inicio
   useEffect(() => {
-    const savedTransactions = localStorage.getItem('transactions');
-    const savedReminders = localStorage.getItem('reminders');
-    const savedSavings = localStorage.getItem('savings');
+    const loadData = async () => {
+      try {
+        const [transResult, reminderResult, savingResult] = await Promise.all([
+          window.storage.get('transactions').catch(() => null),
+          window.storage.get('reminders').catch(() => null),
+          window.storage.get('savings').catch(() => null)
+        ]);
+        
+        if (transResult?.value) setTransactions(JSON.parse(transResult.value));
+        if (reminderResult?.value) setReminders(JSON.parse(reminderResult.value));
+        if (savingResult?.value) setSavings(JSON.parse(savingResult.value));
+      } catch (error) {
+        console.error('Error cargando datos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-    if (savedReminders) setReminders(JSON.parse(savedReminders));
-    if (savedSavings) setSavings(JSON.parse(savedSavings));
+    loadData();
   }, []);
 
+  // Guardar transacciones
   useEffect(() => {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    if (!loading) {
+      window.storage.set('transactions', JSON.stringify(transactions)).catch(err => 
+        console.error('Error guardando transacciones:', err)
+      );
+    }
+  }, [transactions, loading]);
 
+  // Guardar recordatorios
   useEffect(() => {
-    localStorage.setItem('reminders', JSON.stringify(reminders));
-  }, [reminders]);
+    if (!loading) {
+      window.storage.set('reminders', JSON.stringify(reminders)).catch(err => 
+        console.error('Error guardando recordatorios:', err)
+      );
+    }
+  }, [reminders, loading]);
 
+  // Guardar ahorros
   useEffect(() => {
-    localStorage.setItem('savings', JSON.stringify(savings));
-  }, [savings]);
+    if (!loading) {
+      window.storage.set('savings', JSON.stringify(savings)).catch(err => 
+        console.error('Error guardando ahorros:', err)
+      );
+    }
+  }, [savings, loading]);
 
+  // Auto-crear transacciones mensuales
   useEffect(() => {
-    if (!currentUser || !showRemindersModule || reminders.length === 0) return;
+    if (loading || reminders.length === 0) return;
 
     const checkAndCreateTransactions = () => {
       const today = new Date();
@@ -120,15 +145,7 @@ export default function FinanceTracker() {
     const interval = setInterval(checkAndCreateTransactions, 21600000);
 
     return () => clearInterval(interval);
-  }, [currentUser, showRemindersModule, reminders, transactions]);
-
-  const handleLogout = () => {
-    setTransactions([]);
-    setSavings([]);
-    setReminders([]);
-    setActiveTab('finanzas');
-    setShowLogin(true);
-  };
+  }, [currentUser, reminders, transactions, loading]);
 
   const addReminder = () => {
     if (!reminderName || !reminderAmount || !reminderDueDate || !reminderCategory) {
@@ -466,13 +483,6 @@ export default function FinanceTracker() {
                 <p className="text-xs text-gray-600 truncate max-w-[150px] sm:max-w-none">{currentUser?.email}</p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1 sm:gap-2 bg-red-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-red-600 transition text-sm"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Salir</span>
-            </button>
           </div>
 
           {/* Tabs de navegación */}
@@ -488,34 +498,30 @@ export default function FinanceTracker() {
               <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
               Finanzas
             </button>
-            {showSavingsModule && (
-              <button
-                onClick={() => setActiveTab('ahorros')}
-                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-sm ${
-                  activeTab === 'ahorros'
-                    ? 'bg-purple-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <PiggyBank className="w-4 h-4 sm:w-5 sm:h-5" />
-                Ahorros
-              </button>
-            )}
-            {showRemindersModule && (
-              <button
-                onClick={() => setActiveTab('recordatorios')}
-                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-sm ${
-                  activeTab === 'recordatorios'
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                Recordatorios
-              </button>
-            )}
+            <button
+              onClick={() => setActiveTab('ahorros')}
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-sm ${
+                activeTab === 'ahorros'
+                  ? 'bg-purple-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <PiggyBank className="w-4 h-4 sm:w-5 sm:h-5" />
+              Ahorros
+            </button>
+            <button
+              onClick={() => setActiveTab('recordatorios')}
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-sm ${
+                activeTab === 'recordatorios'
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              Recordatorios
+            </button>
           </div>
         </div>
       </div>
@@ -560,6 +566,48 @@ export default function FinanceTracker() {
                 <div className="text-center p-3 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">Total</p>
                   <p className="text-lg sm:text-xl font-bold text-purple-600">{filteredTransactions.length}</p>
+                </div>
+              </div>
+
+              {/* Gráficos */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Gastos por Categoría</h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const categoryTotals = {};
+                      filteredTransactions
+                        .filter(t => t.type === 'gasto' && t.status === 'pagado')
+                        .forEach(t => {
+                          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                        });
+                      
+                      const sortedCategories = Object.entries(categoryTotals)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6);
+
+                      const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                      return sortedCategories.length > 0 ? (
+                        sortedCategories.map(([category, amount]) => (
+                          <div key={category} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-semibold text-gray-700">{category}</span>
+                              <span className="text-gray-600">${formatCurrency(amount)}</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3">
+                              <div
+                                className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all"
+                                style={{ width: `${(amount / maxAmount) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">No hay datos de ingresos</p>
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>
@@ -623,7 +671,7 @@ export default function FinanceTracker() {
                               </button>
                             )}
                             <button onClick={() => deleteTransaction(transaction.id)} className="bg-red-500 text-white p-1.5 rounded hover:bg-red-600">
-                              <Trash2 className="w-3 h-3" />
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
                           </div>
                         </div>
@@ -709,7 +757,7 @@ export default function FinanceTracker() {
                             <p className="text-lg sm:text-xl font-bold text-purple-700">${formatCurrency(saving.accumulatedTotal)}</p>
                           </div>
                           <button onClick={() => deleteSaving(saving.id)} className="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 flex items-center gap-1 text-xs">
-                            <Trash2 className="w-3 h-3" />
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                           </button>
                         </div>
                       </div>
@@ -842,7 +890,7 @@ export default function FinanceTracker() {
                                 {reminder.status === 'pagado' ? 'Desmarcar' : 'Pagar'}
                               </button>
                               <button onClick={() => deleteReminder(reminder.id)} className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600">
-                                <Trash2 className="w-4 h-4" />
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                               </button>
                             </div>
                           </div>
@@ -858,4 +906,43 @@ export default function FinanceTracker() {
       </div>
     </div>
   );
-}
+}-between text-sm">
+                              <span className="font-semibold text-gray-700">{category}</span>
+                              <span className="text-gray-600">${formatCurrency(amount)}</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3">
+                              <div
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all"
+                                style={{ width: `${(amount / maxAmount) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">No hay datos de gastos</p>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Ingresos por Categoría</h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const categoryTotals = {};
+                      filteredTransactions
+                        .filter(t => t.type === 'ingreso')
+                        .forEach(t => {
+                          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                        });
+                      
+                      const sortedCategories = Object.entries(categoryTotals)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6);
+
+                      const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                      return sortedCategories.length > 0 ? (
+                        sortedCategories.map(([category, amount]) => (
+                          <div key={category} className="space-y-1">
+                            <div className="flex justify
