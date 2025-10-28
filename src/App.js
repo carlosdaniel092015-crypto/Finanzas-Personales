@@ -594,45 +594,6 @@ export default function FinanceTracker() {
                           </div>
                         ))
                       ) : (
-                        <p className="text-gray-500 text-center py-8">No hay datos de gastos</p>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-4">Ingresos por Categoría</h3>
-                  <div className="space-y-3">
-                    {(() => {
-                      const categoryTotals = {};
-                      filteredTransactions
-                        .filter(t => t.type === 'ingreso')
-                        .forEach(t => {
-                          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-                        });
-                      
-                      const sortedCategories = Object.entries(categoryTotals)
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 6);
-
-                      const maxAmount = sortedCategories[0]?.[1] || 1;
-
-                      return sortedCategories.length > 0 ? (
-                        sortedCategories.map(([category, amount]) => (
-                          <div key={category} className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                              <span className="font-semibold text-gray-700">{category}</span>
-                              <span className="text-gray-600">${formatCurrency(amount)}</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-3">
-                              <div
-                                className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all"
-                                style={{ width: `${(amount / maxAmount) * 100}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
                         <p className="text-gray-500 text-center py-8">No hay datos de ingresos</p>
                       );
                     })()}
@@ -901,20 +862,23 @@ export default function FinanceTracker() {
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <span className="font-bold text-sm sm:text-base">{reminder.name}</span>
                               <span className={`px-2 py-1 rounded text-xs font-semibold ${reminder.status === 'pagado' ? 'bg-green-100 text-green-800' : isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
-                                {reminder.status === 'pagado' ? 'Pagado' : isOverdue ? `Vencido (${Math.abs(daysUntil)}d)` : isDueSoon ? `${daysUntil}d` : `${daysUntil}d`}
+                                {reminder.status === 'pagado' ? 'Pagado' : isOverdue ? `Vencido (${Math.abs(daysUntil)}d)` : isDueSoon ? `Vence en ${daysUntil} días` : `Vence en ${daysUntil} días`}
                               </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="grid grid-cols-1 gap-1 text-xs">
                               <div><span className="text-gray-500">Categoría:</span> <span className="font-semibold">{reminder.category}</span></div>
                               <div><span className="text-gray-500">Frecuencia:</span> <span className="font-semibold capitalize">{reminder.frequency}</span></div>
                               <div><span className="text-gray-500">Vence:</span> <span className="font-semibold">{new Date(reminder.dueDate).toLocaleDateString('es-ES')}</span></div>
+                              {reminder.status === 'pagado' && reminder.paidDate && (
+                                <div><span className="text-gray-500">Pagado:</span> <span className="font-semibold text-green-600">{new Date(reminder.paidDate).toLocaleDateString('es-ES')}</span></div>
+                              )}
                             </div>
                           </div>
                           <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
                             <p className="text-xl sm:text-2xl font-bold text-orange-600">${formatCurrency(reminder.amount)}</p>
                             <div className="flex gap-2">
                               <button onClick={() => toggleReminderStatus(reminder.id, reminder.status, reminder)} className={`px-3 py-1 sm:py-2 rounded-lg font-semibold text-xs ${reminder.status === 'pagado' ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-green-500 text-white hover:bg-green-600'}`}>
-                                {reminder.status === 'pagado' ? 'Desmarcar' : 'Pagar'}
+                                {reminder.status === 'pagado' ? 'Desmarcar' : 'Marcar Pagado'}
                               </button>
                               <button onClick={() => deleteReminder(reminder.id)} className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600">
                                 <Trash2 className="w-4 h-4" />
@@ -934,3 +898,42 @@ export default function FinanceTracker() {
     </div>
   );
 }
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">No hay datos de gastos</p>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Ingresos por Categoría</h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const categoryTotals = {};
+                      filteredTransactions
+                        .filter(t => t.type === 'ingreso')
+                        .forEach(t => {
+                          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                        });
+                      
+                      const sortedCategories = Object.entries(categoryTotals)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6);
+
+                      const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                      return sortedCategories.length > 0 ? (
+                        sortedCategories.map(([category, amount]) => (
+                          <div key={category} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-semibold text-gray-700">{category}</span>
+                              <span className="text-gray-600">${formatCurrency(amount)}</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3">
+                              <div
+                                className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all"
+                                style={{ width: `${(amount / maxAmount) * 100}%` }}
+                              ></div>
