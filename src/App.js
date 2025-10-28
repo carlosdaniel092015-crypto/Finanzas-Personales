@@ -1342,6 +1342,49 @@ export default function FinanceTracker() {
               })()}
             </div>
 
+            {/* Dashboard por Categoría */}
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+              <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">Recordatorios por Categoría</h3>
+              <div className="space-y-3">
+                {(() => {
+                  const categoryTotals = {};
+                  const categoryCounts = {};
+                  
+                  reminders.filter(r => r.status === 'pendiente').forEach(r => {
+                    categoryTotals[r.category] = (categoryTotals[r.category] || 0) + r.amount;
+                    categoryCounts[r.category] = (categoryCounts[r.category] || 0) + 1;
+                  });
+                  
+                  const sortedCategories = Object.entries(categoryTotals)
+                    .sort((a, b) => b[1] - a[1]);
+
+                  const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                  return sortedCategories.length > 0 ? (
+                    sortedCategories.map(([category, amount]) => (
+                      <div key={category} className="space-y-1">
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-700">{category}</span>
+                            <span className="text-xs text-gray-500">({categoryCounts[category]} recordatorios)</span>
+                          </div>
+                          <span className="text-gray-600 font-bold">${formatCurrency(amount)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
+                          <div
+                            className="bg-gradient-to-r from-orange-500 to-red-600 h-2 sm:h-3 rounded-full transition-all"
+                            style={{ width: `${(amount / maxAmount) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4 text-sm">No hay recordatorios pendientes</p>
+                  );
+                })()}
+              </div>
+            </div>
+
             {/* Agregar Recordatorio - Responsive */}
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
               <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Agregar Recordatorio</h2>
