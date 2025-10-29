@@ -3096,25 +3096,16 @@ export default function FinanceTracker() {
 
                             
 
-                            <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-2">
-
+                             <div className="space-y-1 text-xs sm:text-sm mb-2">
                               <div>
-
-                                <span className="text-gray-600">Categoría:</span>
-
-                                <span className="font-semibold ml-1 sm:ml-2">{reminder.category}</span>
-
+                               <span className="text-gray-600">Categoría:</span>
+                               <span className="font-semibold ml-1 sm:ml-2">{reminder.category}</span>
                               </div>
-
                               <div>
-
-                                <span className="text-gray-600">Frecuencia:</span>
-
-                                <span className="font-semibold ml-1 sm:ml-2 capitalize">{reminder.frequency}</span>
-
-                              </div>
-
-                              <div>
+                              <span className="text-gray-600">Frecuencia:</span>
+                               <span className="font-semibold ml-1 sm:ml-2 capitalize">{reminder.frequency}</span>
+                             </div>
+                             </div>
 
                                 <span className="text-gray-600">Vence:</span>
 
