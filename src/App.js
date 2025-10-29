@@ -3096,7 +3096,7 @@ export default function FinanceTracker() {
 
                             
 
-                            <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-2">
+                            <div className="space-y-1 text-xs sm:text-sm mb-2">
 
                               <div>
 
