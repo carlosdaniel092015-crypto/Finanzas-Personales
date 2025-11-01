@@ -105,8 +105,8 @@ export default function FinanceTracker() {
   const [showRemindersModule, setShowRemindersModule] = useState(false);
 
   const [reminderFilter, setReminderFilter] = useState('todos');
-
-
+  const [reminderDateFilter, setReminderDateFilter] = useState('mes');
+  const [reminderSelectedDate, setReminderSelectedDate] = useState(new Date());
 
   const AUTHORIZED_EMAILS = ['carlosdaniel092015@gmail.com', 'stephanymartinezjaquez30@gmail.com'];
 
@@ -294,151 +294,90 @@ export default function FinanceTracker() {
 
 
 
-  // Verificar y crear recordatorios mensuales automáticamente
+// Verificar y crear recordatorios mensuales automáticamente
+useEffect(() => {
+  if (!currentUser || !showRemindersModule || reminders.length === 0) return;
 
-  useEffect(() => {
+  const checkAndCreateMonthlyReminders = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const dayOfMonth = today.getDate();
+    
+    // Solo ejecutar el día 1 de cada mes
+    if (dayOfMonth !== 1) return;
 
-    if (!currentUser || !showRemindersModule || reminders.length === 0) return;
+    for (const reminder of reminders) {
+      if (reminder.frequency !== 'mensual') continue;
 
+      const dueDate = new Date(reminder.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
 
+      // Si la fecha de vencimiento fue en el mes anterior o anterior
+      const isTimeToPay = dueDate <= today;
 
-    const checkAndCreateMonthlyReminders = async () => {
+      if (isTimeToPay) {
+        try {
+          // Verificar si ya existe una transacción para este recordatorio este mes
+          const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+          const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+          
+          const transactionsQuery = query(
+            collection(db, 'transactions'),
+            where('userId', '==', currentUser.uid),
+            where('reminderId', '==', reminder.id)
+          );
+          
+          const existingTransactions = await getDocs(transactionsQuery);
+          
+          // Verificar si ya existe una transacción este mes
+          const hasTransactionThisMonth = existingTransactions.docs.some(doc => {
+            const transDate = new Date(doc.data().date);
+            return transDate >= firstDayOfMonth && transDate <= lastDayOfMonth;
+          });
+          
+          if (!hasTransactionThisMonth) {
+            // Crear transacción automática
+            await addDoc(collection(db, 'transactions'), {
+              userId: currentUser.uid,
+              type: 'gasto',
+              amount: reminder.amount,
+              category: reminder.category,
+              description: `${reminder.name} (Pago mensual automático)`,
+              status: 'pendiente',
+              date: today.toISOString(),
+              createdAt: new Date(),
+              fromReminder: true,
+              reminderId: reminder.id,
+              autoCreated: true
+            });
 
-      const today = new Date();
-
-      const dayOfMonth = today.getDate();
-
-      
-
-      // Solo ejecutar el día 1 de cada mes
-
-      if (dayOfMonth !== 1) return;
-
-
-
-      today.setHours(0, 0, 0, 0);
-
-
-
-      for (const reminder of reminders) {
-
-        if (reminder.frequency !== 'mensual') continue;
-
-
-
-        const dueDate = new Date(reminder.dueDate);
-
-        dueDate.setHours(0, 0, 0, 0);
-
-
-
-        // Si la fecha de vencimiento es hoy
-
-        if (dueDate.getTime() === today.getTime()) {
-
-          try {
-
-            // Verificar si ya existe una transacción para este recordatorio este mes
-
-            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-            const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
+            // Actualizar fecha del recordatorio al próximo mes
+            const nextMonth = new Date(today);
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            nextMonth.setDate(1);
             
+            await updateDoc(doc(db, 'reminders', reminder.id), {
+              dueDate: nextMonth.toISOString().split('T')[0]
+            });
 
-            const transactionsQuery = query(
-
-              collection(db, 'transactions'),
-
-              where('userId', '==', currentUser.uid),
-
-              where('reminderId', '==', reminder.id),
-
-              where('date', '>=', firstDayOfMonth.toISOString()),
-
-              where('date', '<=', lastDayOfMonth.toISOString())
-
-            );
-
-            
-
-            const existingTransactions = await getDocs(transactionsQuery);
-
-            
-
-            if (existingTransactions.empty) {
-
-              // Crear transacción automática
-
-              await addDoc(collection(db, 'transactions'), {
-
-                userId: currentUser.uid,
-
-                type: 'gasto',
-
-                amount: reminder.amount,
-
-                category: reminder.category,
-
-                description: `${reminder.name} (Pago mensual automático)`,
-
-                status: 'pendiente',
-
-                date: today.toISOString(),
-
-                createdAt: new Date(),
-
-                fromReminder: true,
-
-                reminderId: reminder.id,
-
-                autoCreated: true
-
-              });
-
-
-
-              // Actualizar fecha del recordatorio al próximo mes
-
-              const nextMonth = new Date(dueDate);
-
-              nextMonth.setMonth(nextMonth.getMonth() + 1);
-
-              
-
-              await updateDoc(doc(db, 'reminders', reminder.id), {
-
-                dueDate: nextMonth.toISOString().split('T')[0]
-
-              });
-
-            }
-
-          } catch (error) {
-
-            console.error('Error al crear recordatorio mensual automático:', error);
-
+            console.log(`Recordatorio mensual creado: ${reminder.name}`);
           }
-
+        } catch (error) {
+          console.error('Error al crear recordatorio mensual automático:', error);
         }
-
       }
+    }
+  };
 
-    };
+  // Ejecutar al cargar
+  checkAndCreateMonthlyReminders();
+  
+  // Ejecutar cada hora
+  const interval = setInterval(checkAndCreateMonthlyReminders, 3600000);
 
-
-
-    // Ejecutar al cargar y cada hora
-
-    checkAndCreateMonthlyReminders();
-
-    const interval = setInterval(checkAndCreateMonthlyReminders, 3600000);
-
-
-
-    return () => clearInterval(interval);
-
-  }, [currentUser, showRemindersModule, reminders]);
+  return () => clearInterval(interval);
+}, [currentUser, showRemindersModule, reminders]);
 
 
 
@@ -884,7 +823,24 @@ export default function FinanceTracker() {
 
   };
 
-
+const filterRemindersByDate = () => {
+  const filtered = filterReminders();
+  const now = new Date(reminderSelectedDate);
+  
+  return filtered.filter(r => {
+    const reminderDate = new Date(r.dueDate);
+    
+    if (reminderDateFilter === 'dia') {
+      return reminderDate.toDateString() === now.toDateString();
+    } else if (reminderDateFilter === 'mes') {
+      return reminderDate.getMonth() === now.getMonth() && 
+             reminderDate.getFullYear() === now.getFullYear();
+    } else if (reminderDateFilter === 'ano') {
+      return reminderDate.getFullYear() === now.getFullYear();
+    }
+    return true;
+  });
+};
 
   const addTransaction = async () => {
 
@@ -2587,6 +2543,42 @@ export default function FinanceTracker() {
               </div>
 
             </div>
+{/* Filtros de fecha para recordatorios */}
+<div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+  <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">Filtrar por Fecha</h3>
+  <div className="flex flex-wrap gap-2 items-center">
+    <button
+      onClick={() => setReminderDateFilter('dia')}
+      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+        reminderDateFilter === 'dia' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+      }`}
+    >
+      Día
+    </button>
+    <button
+      onClick={() => setReminderDateFilter('mes')}
+      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+        reminderDateFilter === 'mes' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+      }`}
+    >
+      Mes
+    </button>
+    <button
+      onClick={() => setReminderDateFilter('ano')}
+      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm ${
+        reminderDateFilter === 'ano' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+      }`}
+    >
+      Año
+    </button>
+    <input
+      type="date"
+      value={reminderSelectedDate.toISOString().split('T')[0]}
+      onChange={(e) => setReminderSelectedDate(new Date(e.target.value))}
+      className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm"
+    />
+  </div>
+</div>
 
 
 
@@ -2595,92 +2587,50 @@ export default function FinanceTracker() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
 
               {(() => {
+  const filteredByDate = filterRemindersByDate();
+  const totalReminders = filteredByDate.length;
+  const pendingReminders = filteredByDate.filter(r => r.status === 'pendiente');
+  const totalPending = pendingReminders.reduce((sum, r) => sum + r.amount, 0);
+  const overdueReminders = pendingReminders.filter(r => getDaysUntilDue(r.dueDate) < 0);
+  const dueSoonReminders = pendingReminders.filter(r => {
+    const days = getDaysUntilDue(r.dueDate);
+    return days >= 0 && days <= 7;
+  });
 
-                const totalReminders = reminders.length;
+  return (
+    <>
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-orange-500">
+        <p className="text-gray-600 text-xs sm:text-sm mb-1">Total</p>
+        <p className="text-xl sm:text-2xl font-bold text-orange-600">{totalReminders}</p>
+        <p className="text-xs text-gray-500 mt-1">
+          {pendingReminders.length} pendientes
+        </p>
+      </div>
 
-                const pendingReminders = reminders.filter(r => r.status === 'pendiente');
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-red-500">
+        <p className="text-gray-600 text-xs sm:text-sm mb-1">Monto</p>
+        <p className="text-lg sm:text-2xl font-bold text-red-600">${formatCurrency(totalPending)}</p>
+        <p className="text-xs text-gray-500 mt-1">Por pagar</p>
+      </div>
 
-                const totalPending = pendingReminders.reduce((sum, r) => sum + r.amount, 0);
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-yellow-500">
+        <p className="text-gray-600 text-xs sm:text-sm mb-1">Pronto</p>
+        <p className="text-xl sm:text-2xl font-bold text-yellow-600">{dueSoonReminders.length}</p>
+        <p className="text-xs text-gray-500 mt-1">
+          ${formatCurrency(dueSoonReminders.reduce((sum, r) => sum + r.amount, 0))}
+        </p>
+      </div>
 
-                const overdueReminders = pendingReminders.filter(r => getDaysUntilDue(r.dueDate) < 0);
-
-                const dueSoonReminders = pendingReminders.filter(r => {
-
-                  const days = getDaysUntilDue(r.dueDate);
-
-                  return days >= 0 && days <= 7;
-
-                });
-
-
-
-                return (
-
-                  <>
-
-                    <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-orange-500">
-
-                      <p className="text-gray-600 text-xs sm:text-sm mb-1">Total</p>
-
-                      <p className="text-xl sm:text-2xl font-bold text-orange-600">{totalReminders}</p>
-
-                      <p className="text-xs text-gray-500 mt-1">
-
-                        {pendingReminders.length} pendientes
-
-                      </p>
-
-                    </div>
-
-
-
-                    <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-red-500">
-
-                      <p className="text-gray-600 text-xs sm:text-sm mb-1">Monto</p>
-
-                      <p className="text-lg sm:text-2xl font-bold text-red-600">${formatCurrency(totalPending)}</p>
-
-                      <p className="text-xs text-gray-500 mt-1">Por pagar</p>
-
-                    </div>
-
-
-
-                    <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-yellow-500">
-
-                      <p className="text-gray-600 text-xs sm:text-sm mb-1">Pronto</p>
-
-                      <p className="text-xl sm:text-2xl font-bold text-yellow-600">{dueSoonReminders.length}</p>
-
-                      <p className="text-xs text-gray-500 mt-1">
-
-                        ${formatCurrency(dueSoonReminders.reduce((sum, r) => sum + r.amount, 0))}
-
-                      </p>
-
-                    </div>
-
-
-
-                    <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-purple-500">
-
-                      <p className="text-gray-600 text-xs sm:text-sm mb-1">Vencidos</p>
-
-                      <p className="text-xl sm:text-2xl font-bold text-purple-600">{overdueReminders.length}</p>
-
-                      <p className="text-xs text-gray-500 mt-1">
-
-                        ${formatCurrency(overdueReminders.reduce((sum, r) => sum + r.amount, 0))}
-
-                      </p>
-
-                    </div>
-
-                  </>
-
-                );
-
-              })()}
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-purple-500">
+        <p className="text-gray-600 text-xs sm:text-sm mb-1">Vencidos</p>
+        <p className="text-xl sm:text-2xl font-bold text-purple-600">{overdueReminders.length}</p>
+        <p className="text-xs text-gray-500 mt-1">
+          ${formatCurrency(overdueReminders.reduce((sum, r) => sum + r.amount, 0))}
+        </p>
+      </div>
+    </>
+  );
+})()}
 
             </div>
 
@@ -3004,15 +2954,11 @@ export default function FinanceTracker() {
 
               </div>
 
-              <div className="space-y-3">
-
-                {filterReminders().length === 0 ? (
-
-                  <p className="text-gray-500 text-center py-8 text-sm">No hay recordatorios en esta categoría</p>
-
-                ) : (
-
-                  filterReminders().map((reminder) => {
+             <div className="space-y-3">
+  {filterRemindersByDate().length === 0 ? (
+    <p className="text-gray-500 text-center py-8 text-sm">No hay recordatorios en esta categoría</p>
+  ) : (
+    filterRemindersByDate().map((reminder) => {
 
                     const daysUntil = getDaysUntilDue(reminder.dueDate);
 
