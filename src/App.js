@@ -2652,7 +2652,7 @@ const filterRemindersByDate = () => {
 
                   
 
-                  reminders.filter(r => r.status === 'pendiente').forEach(r => {
+                  filterRemindersByDate().filter(r => r.status === 'pendiente').forEach(r => {
 
                     categoryTotals[r.category] = (categoryTotals[r.category] || 0) + r.amount;
 
@@ -2710,7 +2710,7 @@ const filterRemindersByDate = () => {
 
                   ) : (
 
-                    <p className="text-gray-500 text-center py-4 text-sm">No hay recordatorios pendientes</p>
+                    <p className="text-gray-500 text-center py-4 text-sm">No hay recordatorios pendientes en este período</p>
 
                   );
 
