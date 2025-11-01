@@ -1265,7 +1265,7 @@ export default function FinanceTracker() {
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <span className="font-bold text-sm sm:text-lg text-gray-800 truncate">{saving.name}</span>
+                            <span className="font-bold text-sm sm:text-lg text-gray-800truncate">{saving.name}</span>
                             <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">
                               {new Date(saving.date).toLocaleDateString('es-ES', {
                                 day: '2-digit',
