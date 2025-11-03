@@ -108,6 +108,23 @@ export default function FinanceTracker() {
   const [reminderDateFilter, setReminderDateFilter] = useState('mes');
   const [reminderSelectedDate, setReminderSelectedDate] = useState(new Date());
 
+  // Estados para el módulo de negocios
+const [activeBusinessTab, setActiveBusinessTab] = useState('dashboard');
+const [businessTransactions, setBusinessTransactions] = useState([]);
+const [businessType, setBusinessType] = useState('ingreso');
+const [businessAmount, setBusinessAmount] = useState('');
+const [businessConcept, setBusinessConcept] = useState('');
+const [businessPaymentMethod, setBusinessPaymentMethod] = useState('');
+const [businessStatus, setBusinessStatus] = useState('pagado');
+const [businessDateFilter, setBusinessDateFilter] = useState('mes');
+const [businessSelectedDate, setBusinessSelectedDate] = useState(new Date());
+const [businessSearchTerm, setBusinessSearchTerm] = useState('');
+const [showBusinessModule, setShowBusinessModule] = useState(false);
+
+const BUSINESS_AUTHORIZED_EMAIL = 'carlosdaniel092015@gmail.com';
+
+const paymentMethods = ['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'QR/Digital', 'Crédito'];
+
   const AUTHORIZED_EMAILS = ['carlosdaniel092015@gmail.com', 'stephanymartinezjaquez30@gmail.com'];
 
   const REMINDERS_AUTHORIZED_EMAIL = 'carlosdaniel092015@gmail.com';
@@ -379,7 +396,35 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, [currentUser, showRemindersModule, reminders]);
 
+useEffect(() => {
+  if (currentUser) {
+    setShowBusinessModule(currentUser.email === BUSINESS_AUTHORIZED_EMAIL);
+  } else {
+    setShowBusinessModule(false);
+  }
+}, [currentUser]);
 
+useEffect(() => {
+  if (!currentUser || !showBusinessModule) {
+    setBusinessTransactions([]);
+    return;
+  }
+
+  const q = query(
+    collection(db, 'business_transactions'),
+    where('userId', '==', currentUser.uid)
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const businessData = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })).sort((a, b) => new Date(b.date) - new Date(a.date));
+    setBusinessTransactions(businessData);
+  });
+
+  return () => unsubscribe();
+}, [currentUser, showBusinessModule]);
 
   const handleRegister = async () => {
 
@@ -1206,6 +1251,8 @@ const filterRemindersByDate = () => {
 
   const filteredTransactions = filterTransactionsByDate();
 
+  
+
   const totalIngresos = filteredTransactions
 
     .filter(t => t.type === 'ingreso' && t.status === 'pagado')
@@ -1556,40 +1603,39 @@ const filterRemindersByDate = () => {
 
             )}
 
-            {showRemindersModule && (
-
-              <button
-
-                onClick={() => setActiveTab('recordatorios')}
-
-                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
-
-                  activeTab === 'recordatorios'
-
-                    ? 'bg-orange-500 text-white'
-
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-
-                }`}
-
-              >
-
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-
-                </svg>
-
-                Recordatorios
-
-              </button>
-
-            )}
-
+           {showRemindersModule && (
+  <button
+    onClick={() => setActiveTab('recordatorios')}
+    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
+      activeTab === 'recordatorios'
+        ? 'bg-orange-500 text-white'
+        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+    }`}
+  >
+    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    </svg>
+    Recordatorios
+  </button>
+)}
+{/* <<<< AQUÍ AGREGAR EL BOTÓN DE NEGOCIOS >>>> */}
+{showBusinessModule && (
+  <button
+    onClick={() => setActiveTab('negocios')}
+    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
+      activeTab === 'negocios'
+        ? 'bg-teal-500 text-white'
+        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+    }`}
+  >
+    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+    Negocios
+  </button>
+)}
           </div>
-
         </div>
-
       </div>
 
 
@@ -3105,22 +3151,9 @@ const filterRemindersByDate = () => {
 
                     );
 
-                  })
-
-                )}
-
-              </div>
-
-            </div>
-
+                </>
+        ) : activeTab === 'negocios' ? (
+          <>
+            {/* TODO EL CÓDIGO DEL MÓDULO DE NEGOCIOS VA AQUÍ */}
           </>
-
         )}
-
-      </div>
-
-    </div>
-
-  );
-
-                                   }
