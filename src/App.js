@@ -3261,6 +3261,10 @@ const filterRemindersByDate = () => {
              </div>
             </div>
           </>
-        ) : activeTab === 'negocios' && showBusinessModule ? (
-
-          </div></div></div>);}
+       ) : activeTab === 'negocios' && showBusinessModule ? (
+  <div>Módulo de negocios en construcción</div>
+) : null}
+      </div>
+    </div>
+  );
+}
