@@ -3614,8 +3614,8 @@ const filterBusinessTransactionsByDate = () => {
                 )}
               </div>
             </div>
-          </>
-      ) : null}  // ✅ Cierre correcto del operador ternario
+      </>
+        ) : null}
       </div>
     </div>
   );
