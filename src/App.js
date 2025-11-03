@@ -2660,11 +2660,25 @@ const filterRemindersByDate = () => {
 
           </>
 
-        ) : (
-
+       ) : activeTab === 'ahorros' ? (
           <>
-
+            {/* Módulo de Ahorros - ya está correcto */}
+          </>
+        ) : activeTab === 'recordatorios' ? (
+          <>
             {/* Módulo de Recordatorios - Responsive */}
+            <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+              {/* ... todo el contenido de recordatorios ... */}
+            </div>
+          </>
+        ) : activeTab === 'negocios' && showBusinessModule ? (
+          <>
+            {/* Módulo de Negocios */}
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+              {/* ... todo el contenido de negocios ... */}
+            </div>
+          </>
+        ) : null}
 
             <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
 
