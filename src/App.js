@@ -153,9 +153,15 @@ export default function FinanceTracker() {
     if (user) {
       setCurrentUser(user);
       setShowLogin(false);
-      setShowSavingsModule(AUTHORIZED_EMAILS.includes(user.email));
+      const isBusinessAccount = user.email === BUSINESS_AUTHORIZED_EMAIL;
+      setShowSavingsModule(AUTHORIZED_EMAILS.includes(user.email) && !isBusinessAccount);
       setShowRemindersModule(user.email === REMINDERS_AUTHORIZED_EMAIL);
-      setShowBusinessModule(user.email === BUSINESS_AUTHORIZED_EMAIL);
+      setShowBusinessModule(isBusinessAccount);
+      
+      // Si es cuenta empresarial, ir directo a la pestaña empresa
+      if (isBusinessAccount) {
+        setActiveTab('empresa');
+      }
     } else {
       setCurrentUser(null);
       setShowLogin(true);
