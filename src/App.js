@@ -3245,7 +3245,7 @@ const filterBusinessTransactionsByDate = () => {
           </>
 
           activeTab === 'recordatorios':
-
+        )}
         </div>
           </>
         ) : activeTab === 'empresa' ? (
