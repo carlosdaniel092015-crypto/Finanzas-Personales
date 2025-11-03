@@ -513,7 +513,7 @@ useEffect(() => {
       setTransactions([]);
       setSavings([]);
       setReminders([]);
-      setBusinessTransactions([]; // ⭐ NUEVO
+      setBusinessTransactions([]);// ⭐ NUEVO
       setActiveTab('finanzas');
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
@@ -1720,14 +1720,7 @@ const filterRemindersByDate = () => {
               </button>
             )}
             {showBusinessModule && (
-              <button
-                onClick={() => setActiveTab('negocios')}
-                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
-                  activeTab === 'negocios'
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
+                    >
                 <Store className="w-4 h-4 sm:w-5 sm:h-5" />
                 Negocios
               </button>
@@ -3269,3 +3262,5 @@ const filterRemindersByDate = () => {
             </div>
           </>
         ) : activeTab === 'negocios' && showBusinessModule ? (
+
+          </div></div></div>);}
