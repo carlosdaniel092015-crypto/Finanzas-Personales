@@ -2075,15 +2075,8 @@ const filterBusinessTransactionsByDate = () => {
                                 day: '2-digit',
                                 month: 'short',
                                 year: 'numeric'
-                            
                               })}
-
                             </span>
-
-                          </div>
-
-                          
-
                           </div>
                           
                           <div className="grid grid-cols-2 gap-2 mb-2">
