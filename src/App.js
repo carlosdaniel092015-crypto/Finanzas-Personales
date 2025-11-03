@@ -3248,7 +3248,6 @@ useEffect(() => {
             </div>
 
           </>
-        ) : activeTab === 'negocios' ? (
   <>
     {/* Módulo de Negocios - Cierre de Caja */}
     <div className="bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
@@ -3485,7 +3484,7 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  <p className="text-xs text-gray-500">
+                 <p className="text-xs text-gray-500">
                     {new Date(transaction.createdAt).toLocaleString('es-ES', {
                       day: '2-digit',
                       month: 'short',
