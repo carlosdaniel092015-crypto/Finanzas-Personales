@@ -2652,7 +2652,7 @@ const filterBusinessTransactionsByDate = () => {
 
           </>
 
-        ) : (
+        ) : activeTab === 'recordatorios' ? (
 
           <>
 
@@ -3250,8 +3250,7 @@ const filterBusinessTransactionsByDate = () => {
             </div>
 
           </>
-
-        </div>
+  
           </>
         ) : activeTab === 'empresa' ? (
           <>
@@ -3616,7 +3615,7 @@ const filterBusinessTransactionsByDate = () => {
               </div>
             </div>
           </>
-        )}
+      ) : null}  // ✅ Cierre correcto del operador ternario
       </div>
     </div>
   );
