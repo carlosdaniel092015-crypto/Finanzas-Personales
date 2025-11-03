@@ -323,82 +323,87 @@ useEffect(() => {
 useEffect(() => {
   if (!currentUser || !showRemindersModule || reminders.length === 0) return;
 
+  let isProcessing = false; // Bandera para evitar ejecuciones concurrentes
   const checkAndCreateMonthlyReminders = async () => {
+    // Evitar ejecuciones múltiples simultáneas
+    if (isProcessing) return;
+
+       isProcessing = true;
+    try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const dayOfMonth = today.getDate();
     
     // Solo ejecutar el día 1 de cada mes
-    if (dayOfMonth !== 1) return;
+      if (dayOfMonth !== 1) {
+        isProcessing = false;
+        return;
+      }
 
-    for (const reminder of reminders) {
-      if (reminder.frequency !== 'mensual') continue;
+      for (const reminder of reminders) {
+        if (reminder.frequency !== 'mensual') continue;
 
-      const dueDate = new Date(reminder.dueDate);
-      dueDate.setHours(0, 0, 0, 0);
+        const dueDate = new Date(reminder.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
 
-      // Si la fecha de vencimiento fue en el mes anterior o anterior
-      const isTimeToPay = dueDate <= today;
+        const isTimeToPay = dueDate <= today;
 
-      if (isTimeToPay) {
-        try {
-          // Verificar si ya existe una transacción para este recordatorio este mes
-          const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-          const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-          
-          const transactionsQuery = query(
-            collection(db, 'transactions'),
-            where('userId', '==', currentUser.uid),
-            where('reminderId', '==', reminder.id)
-          );
-          
-          const existingTransactions = await getDocs(transactionsQuery);
-          
-          // Verificar si ya existe una transacción este mes
-          const hasTransactionThisMonth = existingTransactions.docs.some(doc => {
-            const transDate = new Date(doc.data().date);
-            return transDate >= firstDayOfMonth && transDate <= lastDayOfMonth;
-          });
-          
-          if (!hasTransactionThisMonth) {
-            // Crear transacción automática
-            await addDoc(collection(db, 'transactions'), {
-              userId: currentUser.uid,
-              type: 'gasto',
-              amount: reminder.amount,
-              category: reminder.category,
-              description: `${reminder.name} (Pago mensual automático)`,
-              status: 'pendiente',
-              date: today.toISOString(),
-              createdAt: new Date(),
-              fromReminder: true,
-              reminderId: reminder.id,
-              autoCreated: true
-            });
-
-            // Actualizar fecha del recordatorio al próximo mes
-            const nextMonth = new Date(today);
-            nextMonth.setMonth(nextMonth.getMonth() + 1);
-            nextMonth.setDate(1);
+        if (isTimeToPay) {
+          try {
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
             
-            await updateDoc(doc(db, 'reminders', reminder.id), {
-              dueDate: nextMonth.toISOString().split('T')[0]
+            const transactionsQuery = query(
+              collection(db, 'transactions'),
+              where('userId', '==', currentUser.uid),
+              where('reminderId', '==', reminder.id)
+            );
+            
+            const existingTransactions = await getDocs(transactionsQuery);
+            
+            const hasTransactionThisMonth = existingTransactions.docs.some(doc => {
+              const transDate = new Date(doc.data().date);
+              return transDate >= firstDayOfMonth && transDate <= lastDayOfMonth;
             });
+            
+            if (!hasTransactionThisMonth) {
+              await addDoc(collection(db, 'transactions'), {
+                userId: currentUser.uid,
+                type: 'gasto',
+                amount: reminder.amount,
+                category: reminder.category,
+                description: `${reminder.name} (Pago mensual automático)`,
+                status: 'pendiente',
+                date: today.toISOString(),
+                createdAt: new Date(),
+                fromReminder: true,
+                reminderId: reminder.id,
+                autoCreated: true
+              });
 
-            console.log(`Recordatorio mensual creado: ${reminder.name}`);
+              const nextMonth = new Date(today);
+              nextMonth.setMonth(nextMonth.getMonth() + 1);
+              nextMonth.setDate(1);
+              
+              await updateDoc(doc(db, 'reminders', reminder.id), {
+                dueDate: nextMonth.toISOString().split('T')[0]
+              });
+
+              console.log(`Recordatorio mensual creado: ${reminder.name}`);
+            }
+          } catch (error) {
+            console.error('Error al crear recordatorio mensual automático:', error);
           }
-        } catch (error) {
-          console.error('Error al crear recordatorio mensual automático:', error);
         }
       }
+    } finally {
+      isProcessing = false;
     }
   };
 
-  // Ejecutar al cargar
   checkAndCreateMonthlyReminders();
   
-  // Ejecutar cada hora
   const interval = setInterval(checkAndCreateMonthlyReminders, 3600000);
 
   return () => clearInterval(interval);
@@ -853,8 +858,10 @@ const filterRemindersByDate = () => {
              reminderDate.getFullYear() === now.getFullYear();
     } else if (reminderDateFilter === 'ano') {
       return reminderDate.getFullYear() === now.getFullYear();
+    } else {
+      // Caso 'todos' o cualquier otro valor
+      return true;
     }
-    return true;
   });
 };
 
@@ -3243,8 +3250,6 @@ const filterBusinessTransactionsByDate = () => {
             </div>
 
           </>
-
-          activeTab === 'recordatorios':
 
         </div>
           </>
