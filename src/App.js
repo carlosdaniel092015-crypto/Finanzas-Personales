@@ -108,23 +108,6 @@ export default function FinanceTracker() {
   const [reminderDateFilter, setReminderDateFilter] = useState('mes');
   const [reminderSelectedDate, setReminderSelectedDate] = useState(new Date());
 
-  // Estados para el módulo de negocios
-const [activeBusinessTab, setActiveBusinessTab] = useState('dashboard');
-const [businessTransactions, setBusinessTransactions] = useState([]);
-const [businessType, setBusinessType] = useState('ingreso');
-const [businessAmount, setBusinessAmount] = useState('');
-const [businessConcept, setBusinessConcept] = useState('');
-const [businessPaymentMethod, setBusinessPaymentMethod] = useState('');
-const [businessStatus, setBusinessStatus] = useState('pagado');
-const [businessDateFilter, setBusinessDateFilter] = useState('mes');
-const [businessSelectedDate, setBusinessSelectedDate] = useState(new Date());
-const [businessSearchTerm, setBusinessSearchTerm] = useState('');
-const [showBusinessModule, setShowBusinessModule] = useState(false);
-
-const BUSINESS_AUTHORIZED_EMAIL = 'carlosdaniel092015@gmail.com';
-
-const paymentMethods = ['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'QR/Digital', 'Crédito'];
-
   const AUTHORIZED_EMAILS = ['carlosdaniel092015@gmail.com', 'stephanymartinezjaquez30@gmail.com'];
 
   const REMINDERS_AUTHORIZED_EMAIL = 'carlosdaniel092015@gmail.com';
@@ -396,35 +379,7 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, [currentUser, showRemindersModule, reminders]);
 
-useEffect(() => {
-  if (currentUser) {
-    setShowBusinessModule(currentUser.email === BUSINESS_AUTHORIZED_EMAIL);
-  } else {
-    setShowBusinessModule(false);
-  }
-}, [currentUser]);
 
-useEffect(() => {
-  if (!currentUser || !showBusinessModule) {
-    setBusinessTransactions([]);
-    return;
-  }
-
-  const q = query(
-    collection(db, 'business_transactions'),
-    where('userId', '==', currentUser.uid)
-  );
-
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const businessData = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })).sort((a, b) => new Date(b.date) - new Date(a.date));
-    setBusinessTransactions(businessData);
-  });
-
-  return () => unsubscribe();
-}, [currentUser, showBusinessModule]);
 
   const handleRegister = async () => {
 
@@ -1251,8 +1206,6 @@ const filterRemindersByDate = () => {
 
   const filteredTransactions = filterTransactionsByDate();
 
-  
-
   const totalIngresos = filteredTransactions
 
     .filter(t => t.type === 'ingreso' && t.status === 'pagado')
@@ -1603,39 +1556,40 @@ const filterRemindersByDate = () => {
 
             )}
 
-           {showRemindersModule && (
-  <button
-    onClick={() => setActiveTab('recordatorios')}
-    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
-      activeTab === 'recordatorios'
-        ? 'bg-orange-500 text-white'
-        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-    }`}
-  >
-    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-    </svg>
-    Recordatorios
-  </button>
-)}
-{/* <<<< AQUÍ AGREGAR EL BOTÓN DE NEGOCIOS >>>> */}
-{showBusinessModule && (
-  <button
-    onClick={() => setActiveTab('negocios')}
-    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
-      activeTab === 'negocios'
-        ? 'bg-teal-500 text-white'
-        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-    }`}
-  >
-    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-    </svg>
-    Negocios
-  </button>
-)}
+            {showRemindersModule && (
+
+              <button
+
+                onClick={() => setActiveTab('recordatorios')}
+
+                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
+
+                  activeTab === 'recordatorios'
+
+                    ? 'bg-orange-500 text-white'
+
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+
+                }`}
+
+              >
+
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+
+                </svg>
+
+                Recordatorios
+
+              </button>
+
+            )}
+
           </div>
+
         </div>
+
       </div>
 
 
@@ -3150,204 +3104,23 @@ const filterRemindersByDate = () => {
                       </div>
 
                     );
-                  </>
-      ))
+
+                  })
+
                 )}
-              </div>
-            </div>
-        ) : activeTab === 'negocios' ? (
-          <>
-            {/* Módulo de Negocios */}
-            <div className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
-              <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                <svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold">Gestión de Negocios</h2>
-                  <p className="text-teal-100 text-xs sm:text-sm">Control de ingresos y gastos empresariales</p>
-                </div>
-              </div>
-            </div>
 
-            {/* Dashboard de Negocios */}
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Dashboard de Negocios</h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="bg-green-50 rounded-lg p-3 sm:p-4 border-l-4 border-green-500">
-                  <p className="text-gray-600 text-xs sm:text-sm mb-1">Ingresos</p>
-                  <p className="text-xl sm:text-2xl font-bold text-green-600">
-                    ${formatCurrency(businessTransactions.filter(t => t.type === 'ingreso' && t.status === 'pagado').reduce((sum, t) => sum + t.amount, 0))}
-                  </p>
-                </div>
-                <div className="bg-red-50 rounded-lg p-3 sm:p-4 border-l-4 border-red-500">
-                  <p className="text-gray-600 text-xs sm:text-sm mb-1">Gastos</p>
-                  <p className="text-xl sm:text-2xl font-bold text-red-600">
-                    ${formatCurrency(businessTransactions.filter(t => t.type === 'gasto' && t.status === 'pagado').reduce((sum, t) => sum + t.amount, 0))}
-                  </p>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border-l-4 border-blue-500">
-                  <p className="text-gray-600 text-xs sm:text-sm mb-1">Balance</p>
-                  <p className="text-xl sm:text-2xl font-bold text-blue-600">
-                    ${formatCurrency(
-                      businessTransactions.filter(t => t.type === 'ingreso' && t.status === 'pagado').reduce((sum, t) => sum + t.amount, 0) -
-                      businessTransactions.filter(t => t.type === 'gasto' && t.status === 'pagado').reduce((sum, t) => sum + t.amount, 0)
-                    )}
-                  </p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-3 sm:p-4 border-l-4 border-purple-500">
-                  <p className="text-gray-600 text-xs sm:text-sm mb-1">Transacciones</p>
-                  <p className="text-xl sm:text-2xl font-bold text-purple-600">{businessTransactions.length}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Agregar Transacción de Negocio */}
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Agregar Transacción</h2>
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => setBusinessType('ingreso')}
-                  className={`flex-1 py-2 rounded-lg font-semibold transition ${
-                    businessType === 'ingreso' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'
-                  }`}
-                >
-                  Ingreso
-                </button>
-                <button
-                  onClick={() => setBusinessType('gasto')}
-                  className={`flex-1 py-2 rounded-lg font-semibold transition ${
-                    businessType === 'gasto' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700'
-                  }`}
-                >
-                  Gasto
-                </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Monto</label>
-                  <input
-                    type="number"
-                    value={businessAmount}
-                    onChange={(e) => setBusinessAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Concepto</label>
-                  <input
-                    type="text"
-                    value={businessConcept}
-                    onChange={(e) => setBusinessConcept(e.target.value)}
-                    placeholder="Descripción"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Método de Pago</label>
-                  <select
-                    value={businessPaymentMethod}
-                    onChange={(e) => setBusinessPaymentMethod(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                  >
-                    <option value="">Seleccionar</option>
-                    {paymentMethods.map(method => (
-                      <option key={method} value={method}>{method}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Estado</label>
-                  <select
-                    value={businessStatus}
-                    onChange={(e) => setBusinessStatus(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                  >
-                    <option value="pagado">Pagado</option>
-                    <option value="pendiente">Pendiente</option>
-                  </select>
-                </div>
-              </div>
-
-              <button
-                onClick={async () => {
-                  if (!businessAmount || !businessConcept || !businessPaymentMethod) {
-                    alert('Completa todos los campos');
-                    return;
-                  }
-                  try {
-                    await addDoc(collection(db, 'business_transactions'), {
-                      userId: currentUser.uid,
-                      type: businessType,
-                      amount: parseFloat(businessAmount),
-                      concept: businessConcept,
-                      paymentMethod: businessPaymentMethod,
-                      status: businessStatus,
-                      date: new Date().toISOString(),
-                      createdAt: new Date()
-                    });
-                    setBusinessAmount('');
-                    setBusinessConcept('');
-                    setBusinessPaymentMethod('');
-                    alert('Transacción agregada');
-                  } catch (error) {
-                    alert('Error: ' + error.message);
-                  }
-                }}
-                className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold hover:bg-teal-700 transition"
-              >
-                Agregar Transacción
-              </button>
             </div>
 
-            {/* Historial de Transacciones de Negocio */}
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Historial</h2>
-              <div className="space-y-3">
-                {businessTransactions.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">No hay transacciones</p>
-                ) : (
-                  businessTransactions.map(transaction => (
-                    <div key={transaction.id} className="border rounded-lg p-4 hover:shadow-md transition">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              transaction.type === 'ingreso' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {transaction.type === 'ingreso' ? 'Ingreso' : 'Gasto'}
-                            </span>
-                            <span className="font-semibold">{transaction.concept}</span>
-                          </div>
-                          <p className="text-sm text-gray-600">Método: {transaction.paymentMethod}</p>
-                          <p className="text-xs text-gray-400">{new Date(transaction.date).toLocaleDateString('es-ES')}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-2xl font-bold ${transaction.type === 'ingreso' ? 'text-green-600' : 'text-red-600'}`}>
-                            ${formatCurrency(transaction.amount)}
-                          </p>
-                          <button
-                            onClick={async () => {
-                              if (window.confirm('¿Eliminar transacción?')) {
-                                await deleteDoc(doc(db, 'business_transactions', transaction.id));
-                              }
-                            }}
-                            className="mt-2 bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
           </>
-        ) : null}
+
+        )}
+
       </div>
+
     </div>
+
   );
-}
+
+                                   }
