@@ -3484,7 +3484,7 @@ useEffect(() => {
                     </div>
                   </div>
 
-                 <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500">
                     {new Date(transaction.createdAt).toLocaleString('es-ES', {
                       day: '2-digit',
                       month: 'short',
