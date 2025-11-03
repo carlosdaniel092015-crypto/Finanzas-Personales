@@ -3150,7 +3150,7 @@ const filterRemindersByDate = () => {
                       </div>
 
                     );
-
+                  </>
       ))
                 )}
               </div>
