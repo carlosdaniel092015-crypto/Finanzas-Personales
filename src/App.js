@@ -1920,52 +1920,39 @@ const filterBusinessTransactionsByDate = () => {
                     >
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              transaction.type === 'ingreso' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {transaction.type === 'ingreso' ? 'Ingreso' : 'Gasto'}
-                            </span>
-                            <span className="font-semibold text-gray-700 text-xs sm:text-sm truncate">{transaction.category}</span>
-                            {transaction.fromReminder && (
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
-                                📌 Recordatorio
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-gray-600 text-xs sm:text-sm truncate">{transaction.description || 'Sin descripción'}</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {new Date(transaction.date).toLocaleDateString('es-ES')}
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <span className={`text-lg sm:text-2xl font-bold ${
-                            transaction.type === 'ingreso' ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            ${transaction.amount.toFixed(2)}
-                          </span>
-                          <div className="flex gap-1 sm:gap-2">
-                            {transaction.type === 'gasto' && (
-                              <button
-                                onClick={() => toggleStatus(transaction.id, transaction.status, transaction)}
-                                className={`px-2 sm:px-3 py-1 rounded text-xs font-semibold transition ${
-                                  transaction.status === 'pagado'
-                                    ? 'bg-green-500 text-white hover:bg-green-600'
-                                    : 'bg-yellow-500 text-white hover:bg-yellow-600'
-                                }`}
-                              >
-                                {transaction.status === 'pagado' ? 'Pagado' : 'Pendiente'}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => deleteTransaction(transaction.id, transaction)}
-                              className="bg-red-500 text-white p-1 sm:p-2 rounded hover:bg-red-600 transition"
-                            >
-                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                          <div className="flex-1 min-w-0">
+  <div className="flex items-center gap-2 mb-2 flex-wrap">
+    <span className="font-bold text-sm sm:text-lg text-gray-800 truncate">{saving.name}</span>
+    <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">
+      {new Date(saving.date).toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })}
+    </span>
+  </div>
+
+  <div className="grid grid-cols-2 gap-2 mb-2">
+    <div className="bg-white rounded-lg p-2 border border-purple-100">
+      <p className="text-xs text-gray-500">Invertido</p>
+      <p className="text-sm sm:text-lg font-bold text-blue-600">${formatCurrency(saving.amount)}</p>
+    </div>
+    
+    <div className="bg-white rounded-lg p-2 border border-green-100">
+      <p className="text-xs text-gray-500">Intereses</p>
+      <p className="text-sm sm:text-lg font-bold text-green-600">+${formatCurrency(saving.interestEarned)}</p>
+    </div>
+  </div>
+
+  <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-gray-600">
+    <div>
+      <span className="font-semibold">Días:</span> {saving.daysElapsed}
+    </div>
+    <div>
+      <span className="font-semibold">Rendimiento:</span> +{((saving.interestEarned / saving.amount) * 100).toFixed(2)}%
+    </div>
+  </div>
+</div>
                     </div>
                   ))
                 )}
