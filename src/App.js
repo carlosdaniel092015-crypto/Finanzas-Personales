@@ -108,9 +108,24 @@ export default function FinanceTracker() {
   const [reminderDateFilter, setReminderDateFilter] = useState('mes');
   const [reminderSelectedDate, setReminderSelectedDate] = useState(new Date());
 
+  // Estados para módulo empresarial
+  const [showBusinessModule, setShowBusinessModule] = useState(false);
+  const [businessTransactions, setBusinessTransactions] = useState([]);
+  const [businessType, setBusinessType] = useState('ingreso');
+  const [businessAmount, setBusinessAmount] = useState('');
+  const [businessCategory, setBusinessCategory] = useState('');
+  const [businessDescription, setBusinessDescription] = useState('');
+  const [businessClient, setBusinessClient] = useState('');
+  const [businessInvoice, setBusinessInvoice] = useState('');
+  const [businessStatus, setBusinessStatus] = useState('pendiente');
+  const [businessDateFilter, setBusinessDateFilter] = useState('mes');
+  const [businessSelectedDate, setBusinessSelectedDate] = useState(new Date());
+
   const AUTHORIZED_EMAILS = ['carlosdaniel092015@gmail.com', 'stephanymartinezjaquez30@gmail.com'];
 
   const REMINDERS_AUTHORIZED_EMAIL = 'carlosdaniel092015@gmail.com';
+
+  const BUSINESS_AUTHORIZED_EMAIL = 'acentos.decoventas@gmail.com';
 
   const ANNUAL_RETURN_RATE = 0.11;
 
@@ -118,7 +133,10 @@ export default function FinanceTracker() {
 
   const reminderCategories = ['Préstamos', 'Tarjetas de Crédito', 'Agua', 'Luz', 'Internet', 'Teléfono', 'Cable/TV', 'Streaming', 'Alquiler', 'Seguro', 'Otros'];
 
-
+  const businessCategories = {
+   ingreso: ['Ventas', 'Servicios', 'Productos', 'Comisiones', 'Consultoría', 'Alquiler de equipos', 'Otros ingresos'],
+   egreso: ['Nómina', 'Alquiler', 'Servicios públicos', 'Compra de inventario', 'Marketing', 'Transporte', 'Equipos', 'Mantenimiento', 'Impuestos', 'Seguros', 'Otros gastos']
+  };
 
   const categories = {
 
@@ -131,40 +149,25 @@ export default function FinanceTracker() {
 
 
   useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (user) {
+      setCurrentUser(user);
+      setShowLogin(false);
+      setShowSavingsModule(AUTHORIZED_EMAILS.includes(user.email));
+      setShowRemindersModule(user.email === REMINDERS_AUTHORIZED_EMAIL);
+      setShowBusinessModule(user.email === BUSINESS_AUTHORIZED_EMAIL);
+    } else {
+      setCurrentUser(null);
+      setShowLogin(true);
+      setShowSavingsModule(false);
+      setShowRemindersModule(false);
+      setShowBusinessModule(false);
+    }
+    setLoading(false);
+  });
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-
-      if (user) {
-
-        setCurrentUser(user);
-
-        setShowLogin(false);
-
-        setShowSavingsModule(AUTHORIZED_EMAILS.includes(user.email));
-
-        setShowRemindersModule(user.email === REMINDERS_AUTHORIZED_EMAIL);
-
-      } else {
-
-        setCurrentUser(null);
-
-        setShowLogin(true);
-
-        setShowSavingsModule(false);
-
-        setShowRemindersModule(false);
-
-      }
-
-      setLoading(false);
-
-    });
-
-
-
-    return () => unsubscribe();
-
-  }, []);
+  return () => unsubscribe();
+}, []);
 
 
 
@@ -292,6 +295,28 @@ export default function FinanceTracker() {
 
   }, [currentUser, showRemindersModule]);
 
+  
+useEffect(() => {
+  if (!currentUser || !showBusinessModule) {
+    setBusinessTransactions([]);
+    return;
+  }
+
+  const q = query(
+    collection(db, 'businessTransactions'),
+    where('userId', '==', currentUser.uid)
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const businessData = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    setBusinessTransactions(businessData);
+  });
+
+  return () => unsubscribe();
+}, [currentUser, showBusinessModule]);
 
 
 // Verificar y crear recordatorios mensuales automáticamente
@@ -481,27 +506,18 @@ useEffect(() => {
 
 
 
-  const handleLogout = async () => {
-
-    try {
-
-      await signOut(auth);
-
-      setTransactions([]);
-
-      setSavings([]);
-
-      setReminders([]);
-
-      setActiveTab('finanzas');
-
-    } catch (error) {
-
-      console.error('Error al cerrar sesión:', error);
-
-    }
-
-  };
+ const handleLogout = async () => {
+  try {
+    await signOut(auth);
+    setTransactions([]);
+    setSavings([]);
+    setReminders([]);
+    setBusinessTransactions([]);
+    setActiveTab('finanzas');
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error);
+  }
+};
 
 
 
@@ -1172,7 +1188,105 @@ const filterRemindersByDate = () => {
 
   };
 
+// Funciones del módulo empresarial
+const addBusinessTransaction = async () => {
+  if (!businessAmount || !businessCategory) {
+    alert('Por favor completa los campos requeridos');
+    return;
+  }
 
+  const cleanAmount = businessAmount.replace(/,/g, '').replace(/[^\d.]/g, '');
+  const numericAmount = parseFloat(cleanAmount);
+
+  if (isNaN(numericAmount) || numericAmount <= 0) {
+    alert('Por favor ingresa un monto válido mayor a 0');
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, 'businessTransactions'), {
+      userId: currentUser.uid,
+      type: businessType,
+      amount: numericAmount,
+      category: businessCategory,
+      description: businessDescription,
+      client: businessClient,
+      invoice: businessInvoice,
+      status: businessStatus,
+      date: new Date().toISOString(),
+      createdAt: new Date()
+    });
+
+    setBusinessAmount('');
+    setBusinessCategory('');
+    setBusinessDescription('');
+    setBusinessClient('');
+    setBusinessInvoice('');
+    setBusinessStatus('pendiente');
+    alert('Transacción empresarial agregada exitosamente');
+  } catch (error) {
+    console.error('Error al agregar transacción empresarial:', error);
+    alert('Error al agregar la transacción');
+  }
+};
+
+const deleteBusinessTransaction = async (id) => {
+  if (!window.confirm('¿Estás seguro de eliminar esta transacción?')) {
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(db, 'businessTransactions', id));
+  } catch (error) {
+    console.error('Error al eliminar transacción:', error);
+    alert('Error al eliminar la transacción');
+  }
+};
+
+const toggleBusinessStatus = async (id, currentStatus) => {
+  try {
+    const newStatus = currentStatus === 'pagado' ? 'pendiente' : 'pagado';
+    await updateDoc(doc(db, 'businessTransactions', id), {
+      status: newStatus,
+      paidDate: newStatus === 'pagado' ? new Date().toISOString() : null
+    });
+  } catch (error) {
+    console.error('Error al actualizar estado:', error);
+    alert('Error al actualizar el estado');
+  }
+};
+
+const handleBusinessAmountInput = (value) => {
+  const cleaned = value.replace(/[^\d.]/g, '');
+  const parts = cleaned.split('.');
+  if (parts.length > 2) return;
+  
+  let formatted = parts[0];
+  if (formatted) {
+    formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  
+  if (parts.length === 2) {
+    formatted = formatted + '.' + parts[1].slice(0, 2);
+  }
+  
+  setBusinessAmount(formatted);
+};
+
+const filterBusinessTransactionsByDate = () => {
+  const now = new Date(businessSelectedDate);
+  return businessTransactions.filter(t => {
+    const transDate = new Date(t.date);
+    if (businessDateFilter === 'dia') {
+      return transDate.toDateString() === now.toDateString();
+    } else if (businessDateFilter === 'mes') {
+      return transDate.getMonth() === now.getMonth() && 
+             transDate.getFullYear() === now.getFullYear();
+    } else {
+      return transDate.getFullYear() === now.getFullYear();
+    }
+  });
+};
 
   const filterTransactionsByDate = () => {
 
@@ -1586,6 +1700,21 @@ const filterRemindersByDate = () => {
 
             )}
 
+              {showBusinessModule && (
+  <button
+    onClick={() => setActiveTab('empresa')}
+    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
+      activeTab === 'empresa'
+        ? 'bg-indigo-500 text-white'
+        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+    }`}
+  >
+    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+    Empresa
+  </button>
+)}
           </div>
 
         </div>
@@ -3115,12 +3244,375 @@ const filterRemindersByDate = () => {
 
           </>
 
+          activeTab === 'recordatorios':
+
+        </div>
+          </>
+        ) : activeTab === 'empresa' ? (
+          <>
+            {/* Módulo Empresarial */}
+            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+              <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                <svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold">Finanzas Empresariales</h2>
+                  <p className="text-indigo-100 text-xs sm:text-sm">Gestión de ingresos y egresos comerciales</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Dashboard Empresarial */}
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Dashboard Empresarial</h2>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => setBusinessDateFilter('dia')}
+                    className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm flex-1 sm:flex-none ${
+                      businessDateFilter === 'dia' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Día
+                  </button>
+                  <button
+                    onClick={() => setBusinessDateFilter('mes')}
+                    className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm flex-1 sm:flex-none ${
+                      businessDateFilter === 'mes' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Mes
+                  </button>
+                  <button
+                    onClick={() => setBusinessDateFilter('ano')}
+                    className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm flex-1 sm:flex-none ${
+                      businessDateFilter === 'ano' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Año
+                  </button>
+                  <input
+                    type="date"
+                    value={businessSelectedDate.toISOString().split('T')[0]}
+                    onChange={(e) => setBusinessSelectedDate(new Date(e.target.value))}
+                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm w-full sm:w-auto"
+                  />
+                </div>
+              </div>
+
+              {/* KPIs Empresariales */}
+              {(() => {
+                const filteredBusiness = filterBusinessTransactionsByDate();
+                const totalIngresos = filteredBusiness
+                  .filter(t => t.type === 'ingreso' && t.status === 'pagado')
+                  .reduce((sum, t) => sum + t.amount, 0);
+                const totalEgresos = filteredBusiness
+                  .filter(t => t.type === 'egreso' && t.status === 'pagado')
+                  .reduce((sum, t) => sum + t.amount, 0);
+                const utilidad = totalIngresos - totalEgresos;
+                const cuentasPorCobrar = filteredBusiness
+                  .filter(t => t.type === 'ingreso' && t.status === 'pendiente')
+                  .reduce((sum, t) => sum + t.amount, 0);
+                const cuentasPorPagar = filteredBusiness
+                  .filter(t => t.type === 'egreso' && t.status === 'pendiente')
+                  .reduce((sum, t) => sum + t.amount, 0);
+
+                return (
+                  <>
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                      <div className="text-center p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+                        <p className="text-gray-600 text-xs mb-1">Ingresos</p>
+                        <p className="text-lg sm:text-2xl font-bold text-green-600">${formatCurrency(totalIngresos)}</p>
+                      </div>
+                      <div className="text-center p-3 bg-red-50 rounded-lg border-l-4 border-red-500">
+                        <p className="text-gray-600 text-xs mb-1">Egresos</p>
+                        <p className="text-lg sm:text-2xl font-bold text-red-600">${formatCurrency(totalEgresos)}</p>
+                      </div>
+                      <div className="text-center p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                        <p className="text-gray-600 text-xs mb-1">Utilidad</p>
+                        <p className={`text-lg sm:text-2xl font-bold ${utilidad >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                          ${formatCurrency(Math.abs(utilidad))}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+                        <p className="text-gray-600 text-xs mb-1">Por Cobrar</p>
+                        <p className="text-lg sm:text-2xl font-bold text-yellow-600">${formatCurrency(cuentasPorCobrar)}</p>
+                      </div>
+                      <div className="text-center p-3 bg-purple-50 rounded-lg border-l-4 border-purple-500">
+                        <p className="text-gray-600 text-xs mb-1">Por Pagar</p>
+                        <p className="text-lg sm:text-2xl font-bold text-purple-600">${formatCurrency(cuentasPorPagar)}</p>
+                      </div>
+                    </div>
+
+                    {/* Gráficos empresariales */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                      {/* Ingresos por categoría */}
+                      <div>
+                        <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">Ingresos por Categoría</h3>
+                        <div className="space-y-3">
+                          {(() => {
+                            const categoryTotals = {};
+                            filteredBusiness
+                              .filter(t => t.type === 'ingreso' && t.status === 'pagado')
+                              .forEach(t => {
+                                categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                              });
+                            
+                            const sortedCategories = Object.entries(categoryTotals)
+                              .sort((a, b) => b[1] - a[1])
+                              .slice(0, 6);
+
+                            const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                            return sortedCategories.length > 0 ? (
+                              sortedCategories.map(([category, amount]) => (
+                                <div key={category} className="space-y-1">
+                                  <div className="flex justify-between text-xs sm:text-sm">
+                                    <span className="font-semibold text-gray-700">{category}</span>
+                                    <span className="text-gray-600">${formatCurrency(amount)}</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
+                                    <div
+                                      className="bg-gradient-to-r from-green-500 to-green-600 h-2 sm:h-3 rounded-full transition-all"
+                                      style={{ width: `${(amount / maxAmount) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-gray-500 text-center py-8 text-sm">No hay datos de ingresos</p>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Egresos por categoría */}
+                      <div>
+                        <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">Egresos por Categoría</h3>
+                        <div className="space-y-3">
+                          {(() => {
+                            const categoryTotals = {};
+                            filteredBusiness
+                              .filter(t => t.type === 'egreso' && t.status === 'pagado')
+                              .forEach(t => {
+                                categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                              });
+                            
+                            const sortedCategories = Object.entries(categoryTotals)
+                              .sort((a, b) => b[1] - a[1])
+                              .slice(0, 6);
+
+                            const maxAmount = sortedCategories[0]?.[1] || 1;
+
+                            return sortedCategories.length > 0 ? (
+                              sortedCategories.map(([category, amount]) => (
+                                <div key={category} className="space-y-1">
+                                  <div className="flex justify-between text-xs sm:text-sm">
+                                    <span className="font-semibold text-gray-700">{category}</span>
+                                    <span className="text-gray-600">${formatCurrency(amount)}</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
+                                    <div
+                                      className="bg-gradient-to-r from-red-500 to-red-600 h-2 sm:h-3 rounded-full transition-all"
+                                      style={{ width: `${(amount / maxAmount) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-gray-500 text-center py-8 text-sm">No hay datos de egresos</p>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Agregar Transacción Empresarial */}
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Agregar Transacción</h2>
+              
+              <div className="flex gap-2 sm:gap-4 mb-4">
+                <button
+                  onClick={() => setBusinessType('ingreso')}
+                  className={`flex-1 py-2 sm:py-3 rounded-lg font-semibold transition text-sm sm:text-base ${
+                    businessType === 'ingreso' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  Ingreso
+                </button>
+                <button
+                  onClick={() => setBusinessType('egreso')}
+                  className={`flex-1 py-2 sm:py-3 rounded-lg font-semibold transition text-sm sm:text-base ${
+                    businessType === 'egreso' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  Egreso
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Monto *</label>
+                  <input
+                    type="text"
+                    value={businessAmount}
+                    onChange={(e) => handleBusinessAmountInput(e.target.value)}
+                    placeholder="5,000.00"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Categoría *</label>
+                  <select
+                    value={businessCategory}
+                    onChange={(e) => setBusinessCategory(e.target.value)}
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base"
+                  >
+                    <option value="">Seleccionar</option>
+                    {businessCategories[businessType].map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Cliente/Proveedor</label>
+                  <input
+                    type="text"
+                    value={businessClient}
+                    onChange={(e) => setBusinessClient(e.target.value)}
+                    placeholder="Nombre"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Factura/Recibo</label>
+                  <input
+                    type="text"
+                    value={businessInvoice}
+                    onChange={(e) => setBusinessInvoice(e.target.value)}
+                    placeholder="No. documento"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Estado</label>
+                  <select
+                    value={businessStatus}
+                    onChange={(e) => setBusinessStatus(e.target.value)}
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base"
+                  >
+                    <option value="pendiente">Pendiente</option>
+                    <option value="pagado">Pagado</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                  <input
+                    type="text"
+                    value={businessDescription}
+                    onChange={(e) => setBusinessDescription(e.target.value)}
+                    placeholder="Detalles"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={addBusinessTransaction}
+                className="w-full bg-indigo-600 text-white py-2 sm:py-3 rounded-lg font-semibold hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm sm:text-base"
+              >
+                <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                Agregar Transacción
+              </button>
+            </div>
+
+            {/* Historial de Transacciones Empresariales */}
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Historial de Transacciones</h2>
+              <div className="space-y-3">
+                {filterBusinessTransactionsByDate().length === 0 ? (
+                  <p className="text-gray-500 text-center py-8 text-sm">No hay transacciones registradas</p>
+                ) : (
+                  filterBusinessTransactionsByDate().map(transaction => (
+                    <div
+                      key={transaction.id}
+                      className="border-2 border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition"
+                    >
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              transaction.type === 'ingreso' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {transaction.type === 'ingreso' ? 'Ingreso' : 'Egreso'}
+                            </span>
+                            <span className="font-semibold text-gray-700 text-xs sm:text-sm">{transaction.category}</span>
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                              transaction.status === 'pagado' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {transaction.status === 'pagado' ? 'Pagado' : 'Pendiente'}
+                            </span>
+                          </div>
+                          <div className="space-y-1 text-xs sm:text-sm">
+                            {transaction.client && (
+                              <p className="text-gray-600">
+                                <span className="font-semibold">Cliente/Proveedor:</span> {transaction.client}
+                              </p>
+                            )}
+                            {transaction.invoice && (
+                              <p className="text-gray-600">
+                                <span className="font-semibold">Factura:</span> {transaction.invoice}
+                              </p>
+                            )}
+                            {transaction.description && (
+                              <p className="text-gray-600">
+                                <span className="font-semibold">Descripción:</span> {transaction.description}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-400">
+                              {new Date(transaction.date).toLocaleDateString('es-ES')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className={`text-lg sm:text-2xl font-bold ${
+                            transaction.type === 'ingreso' ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            ${formatCurrency(transaction.amount)}
+                          </span>
+                          <div className="flex gap-1 sm:gap-2">
+                            <button
+                              onClick={() => toggleBusinessStatus(transaction.id, transaction.status)}
+                              className={`px-2 sm:px-3 py-1 rounded text-xs font-semibold transition ${
+                                transaction.status === 'pagado'
+                                  ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                                  : 'bg-green-500 text-white hover:bg-green-600'
+                              }`}
+                            >
+                              {transaction.status === 'pagado' ? 'Marcar Pendiente' : 'Marcar Pagado'}
+                            </button>
+                            <button
+                              onClick={() => deleteBusinessTransaction(transaction.id)}
+                              className="bg-red-500 text-white p-1 sm:p-2 rounded hover:bg-red-600 transition"
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
         )}
-
       </div>
-
     </div>
-
   );
-
-                                   }
+}
