@@ -2070,26 +2070,28 @@ const filterBusinessTransactionsByDate = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <span className="font-bold text-sm sm:text-lg text-gray-800 truncate">{saving.name}</span>
-                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">
-                              {new Date(saving.date).toLocaleDateString('es-ES', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric'
-                              })}
-                            </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-2 mb-2">
-                            <div className="bg-white rounded-lg p-2 border border-purple-100">
-                              <p className="text-xs text-gray-500">Invertido</p>
-                              <p className="text-sm sm:text-lg font-bold text-blue-600">${formatCurrency(saving.amount)}</p>
-                            </div>
-                            
-                            <div className="bg-white rounded-lg p-2 border border-green-100">
-                              <p className="text-xs text-gray-500">Intereses</p>
-                              <p className="text-sm sm:text-lg font-bold text-green-600">+${formatCurrency(saving.interestEarned)}</p>
-                            </div>
-                          </div>
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+  <span className="font-bold text-sm sm:text-lg text-gray-800 truncate">{saving.name}</span>
+  <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">
+    {new Date(saving.date).toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })}
+  </span>
+</div>
+
+<div className="grid grid-cols-2 gap-2 mb-2">
+  <div className="bg-white rounded-lg p-2 border border-purple-100">
+    <p className="text-xs text-gray-500">Invertido</p>
+    <p className="text-sm sm:text-lg font-bold text-blue-600">${formatCurrency(saving.amount)}</p>
+  </div>
+  
+  <div className="bg-white rounded-lg p-2 border border-green-100">
+    <p className="text-xs text-gray-500">Intereses</p>
+    <p className="text-sm sm:text-lg font-bold text-green-600">+${formatCurrency(saving.interestEarned)}</p>
+  </div>
+</div>
 
                           <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-gray-600">
                             <div>
