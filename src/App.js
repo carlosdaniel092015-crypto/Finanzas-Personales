@@ -3486,7 +3486,7 @@ useEffect(() => {
                   </div>
 
                   <p className="text-xs text-gray-500">
-                    {new Date(transaction.createdAt.seconds * 1000).toLocaleString('es-ES', {
+                    {new Date(transaction.createdAt).toLocaleString('es-ES', {
                       day: '2-digit',
                       month: 'short',
                       year: 'numeric',
@@ -3494,10 +3494,42 @@ useEffect(() => {
                       minute: '2-digit'
                     })}
                   </p>
-                </di
-            {/* AQUÍ VA TODO EL CÓDIGO DEL MÓDULO DE NEGOCIOS */}
-          </>
-        )}  {/* ← Este cierra TODOS los módulos */}
+                </div>
+
+                <div className="flex flex-col items-end gap-2">
+                  <p className={`text-lg sm:text-2xl font-bold ${
+                    transaction.type === 'ingreso' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    ${formatCurrency(transaction.amount)}
+                  </p>
+
+                  <div className="flex gap-1 sm:gap-2">
+                    <button
+                      onClick={() => toggleBusinessStatus(transaction.id, transaction.status)}
+                      className={`px-2 sm:px-3 py-1 rounded text-xs font-semibold transition ${
+                        transaction.status === 'pagado'
+                          ? 'bg-green-500 text-white hover:bg-green-600'
+                          : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                      }`}
+                    >
+                      {transaction.status === 'pagado' ? 'Pagado' : 'Pendiente'}
+                    </button>
+                    <button
+                      onClick={() => deleteBusinessTransaction(transaction.id)}
+                      className="bg-red-500 text-white p-1 sm:p-2 rounded hover:bg-red-600 transition"
+                    >
+                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  </>
+) : null}
       </div>
     </div>
   );
