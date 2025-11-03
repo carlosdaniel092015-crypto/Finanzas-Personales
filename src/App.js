@@ -108,8 +108,6 @@ export default function FinanceTracker() {
   const [reminderDateFilter, setReminderDateFilter] = useState('mes');
   const [reminderSelectedDate, setReminderSelectedDate] = useState(new Date());
 
-const [reminderSelectedDate, setReminderSelectedDate] = useState(new Date());
-
   // Estados para el módulo de negocios
   const [showBusinessModule, setShowBusinessModule] = useState(false);
   const [businessTransactions, setBusinessTransactions] = useState([]);
@@ -849,10 +847,26 @@ useEffect(() => {
 
     });
 
-  };
 
 };  // ← Este es el cierre de filterRemindersByDate
-
+ const filterRemindersByDate = () => {
+    const filtered = filterReminders();
+    const now = new Date(reminderSelectedDate);
+    
+    return filtered.filter(r => {
+      const reminderDate = new Date(r.dueDate);
+      
+      if (reminderDateFilter === 'dia') {
+        return reminderDate.toDateString() === now.toDateString();
+      } else if (reminderDateFilter === 'mes') {
+        return reminderDate.getMonth() === now.getMonth() && 
+               reminderDate.getFullYear() === now.getFullYear();
+      } else if (reminderDateFilter === 'ano') {
+        return reminderDate.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+  };
   // Funciones para el módulo de negocios
   const addBusinessTransaction = async () => {
     if (!businessConcept || !businessAmount || !businessPaymentMethod) {
