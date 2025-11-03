@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import { PlusCircle, Trash2, TrendingUp, TrendingDown, DollarSign, LogOut, User, Wallet, PiggyBank, Store, Search } from 'lucide-react';
+import { PlusCircle, Trash2, TrendingUp, TrendingDown, DollarSign, LogOut, User, Wallet, PiggyBank } from 'lucide-react';
 
 import { auth, db } from './firebase';
 
@@ -107,25 +107,11 @@ export default function FinanceTracker() {
   const [reminderFilter, setReminderFilter] = useState('todos');
   const [reminderDateFilter, setReminderDateFilter] = useState('mes');
   const [reminderSelectedDate, setReminderSelectedDate] = useState(new Date());
-  // Estados para módulo de negocios ⭐ NUEVO
-  const [showBusinessModule, setShowBusinessModule] = useState(false);
-  const [businessTransactions, setBusinessTransactions] = useState([]);
-  const [businessType, setBusinessType] = useState('ingreso');
-  const [businessConcept, setBusinessConcept] = useState('');
-  const [businessAmount, setBusinessAmount] = useState('');
-  const [businessPaymentMethod, setBusinessPaymentMethod] = useState('Efectivo');
-  const [businessDate, setBusinessDate] = useState(new Date().toISOString().slice(0, 16));
-  const [businessStatus, setBusinessStatus] = useState('Completado');
-  const [businessDateFilter, setBusinessDateFilter] = useState('dia');
-  const [businessSelectedDate, setBusinessSelectedDate] = useState(new Date());
-  const [businessSearchConcept, setBusinessSearchConcept] = useState('');
-
-  const paymentMethods = ['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Otro'];
-  const businessStatuses = ['Completado', 'Pendiente', 'Cancelado'];
 
   const AUTHORIZED_EMAILS = ['carlosdaniel092015@gmail.com', 'stephanymartinezjaquez30@gmail.com'];
+
   const REMINDERS_AUTHORIZED_EMAIL = 'carlosdaniel092015@gmail.com';
-  const BUSINESS_AUTHORIZED_EMAIL = 'acentos.decoventas@gmail.com'; // ⭐ NUEVO
+
   const ANNUAL_RETURN_RATE = 0.11;
 
 
@@ -147,20 +133,31 @@ export default function FinanceTracker() {
   useEffect(() => {
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+
       if (user) {
+
         setCurrentUser(user);
+
         setShowLogin(false);
+
         setShowSavingsModule(AUTHORIZED_EMAILS.includes(user.email));
+
         setShowRemindersModule(user.email === REMINDERS_AUTHORIZED_EMAIL);
-        setShowBusinessModule(user.email === BUSINESS_AUTHORIZED_EMAIL); // ⭐ NUEVO
+
       } else {
+
         setCurrentUser(null);
+
         setShowLogin(true);
+
         setShowSavingsModule(false);
+
         setShowRemindersModule(false);
-        setShowBusinessModule(false); // ⭐ NUEVO
+
       }
+
       setLoading(false);
+
     });
 
 
@@ -294,29 +291,6 @@ export default function FinanceTracker() {
     return () => unsubscribe();
 
   }, [currentUser, showRemindersModule]);
-
-  // Listener para transacciones de negocios ⭐ NUEVO
-  useEffect(() => {
-    if (!currentUser || !showBusinessModule) {
-      setBusinessTransactions([]);
-      return;
-    }
-
-    const q = query(
-      collection(db, 'businessTransactions'),
-      where('userId', '==', currentUser.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const transactionsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })).sort((a, b) => new Date(b.date) - new Date(a.date));
-      setBusinessTransactions(transactionsData);
-    });
-
-    return () => unsubscribe();
-  }, [currentUser, showBusinessModule]);
 
 
 
@@ -507,17 +481,26 @@ useEffect(() => {
 
 
 
- const handleLogout = async () => {
+  const handleLogout = async () => {
+
     try {
+
       await signOut(auth);
+
       setTransactions([]);
+
       setSavings([]);
+
       setReminders([]);
-      setBusinessTransactions([]);// ⭐ NUEVO
+
       setActiveTab('finanzas');
+
     } catch (error) {
+
       console.error('Error al cerrar sesión:', error);
+
     }
+
   };
 
 
@@ -858,137 +841,6 @@ const filterRemindersByDate = () => {
     return true;
   });
 };
-
-  const handleBusinessAmountInput = (value) => {
-    const cleaned = value.replace(/[^\d.]/g, '');
-    const parts = cleaned.split('.');
-    if (parts.length > 2) {
-      return;
-    }
-    
-    let formatted = parts[0];
-    if (formatted) {
-      formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
-    
-    if (parts.length === 2) {
-      formatted = formatted + '.' + parts[1].slice(0, 2);
-    }
-    
-    setBusinessAmount(formatted);
-  };
-
-  const addBusinessTransaction = async () => {
-    if (!businessConcept || !businessAmount || !businessPaymentMethod) {
-      alert('Por favor completa todos los campos obligatorios');
-      return;
-    }
-
-    const cleanAmount = businessAmount.replace(/,/g, '').replace(/[^\d.]/g, '');
-    const numericAmount = parseFloat(cleanAmount);
-
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      alert('Por favor ingresa un monto válido mayor a 0');
-      return;
-    }
-
-    try {
-      await addDoc(collection(db, 'businessTransactions'), {
-        userId: currentUser.uid,
-        type: businessType,
-        concept: businessConcept,
-        amount: numericAmount,
-        paymentMethod: businessPaymentMethod,
-        date: businessDate,
-        status: businessStatus,
-        createdAt: new Date()
-      });
-
-      setBusinessConcept('');
-      setBusinessAmount('');
-      setBusinessPaymentMethod('Efectivo');
-      setBusinessDate(new Date().toISOString().slice(0, 16));
-      setBusinessStatus('Completado');
-      alert('Transacción agregada exitosamente');
-    } catch (error) {
-      console.error('Error al agregar transacción:', error);
-      alert('Error al agregar la transacción');
-    }
-  };
-
-  const deleteBusinessTransaction = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar esta transacción?')) {
-      return;
-    }
-
-    try {
-      await deleteDoc(doc(db, 'businessTransactions', id));
-    } catch (error) {
-      console.error('Error al eliminar transacción:', error);
-      alert('Error al eliminar la transacción');
-    }
-  };
-
-  const toggleBusinessStatus = async (id, currentStatus) => {
-    const statusOrder = ['Completado', 'Pendiente', 'Cancelado'];
-    const currentIndex = statusOrder.indexOf(currentStatus);
-    const newStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
-
-    try {
-      await updateDoc(doc(db, 'businessTransactions', id), {
-        status: newStatus
-      });
-    } catch (error) {
-      console.error('Error al actualizar estado:', error);
-      alert('Error al actualizar el estado');
-    }
-  };
-
-  const filterBusinessTransactionsByDate = () => {
-    const now = new Date(businessSelectedDate);
-    
-    return businessTransactions.filter(t => {
-      const transDate = new Date(t.date);
-      
-      if (businessSearchConcept && !t.concept.toLowerCase().includes(businessSearchConcept.toLowerCase())) {
-        return false;
-      }
-      
-      if (businessDateFilter === 'dia') {
-        return transDate.toDateString() === now.toDateString();
-      } else if (businessDateFilter === 'mes') {
-        return transDate.getMonth() === now.getMonth() && 
-               transDate.getFullYear() === now.getFullYear();
-      } else if (businessDateFilter === 'ano') {
-        return transDate.getFullYear() === now.getFullYear();
-      }
-      return true;
-    });
-  };
-
-  const calculateBusinessStats = () => {
-    const filtered = filterBusinessTransactionsByDate();
-    
-    const ventasTotales = filtered
-      .filter(t => t.type === 'ingreso' && t.status === 'Completado')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const gastosTotales = filtered
-      .filter(t => t.type === 'egreso' && t.status === 'Completado')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const porCobrar = filtered
-      .filter(t => t.type === 'por_cobrar' && t.status !== 'Cancelado')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const porPagar = filtered
-      .filter(t => t.type === 'por_pagar' && t.status !== 'Cancelado')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const balance = ventasTotales - gastosTotales;
-
-    return { ventasTotales, gastosTotales, porCobrar, porPagar, balance };
-  };
 
   const addTransaction = async () => {
 
@@ -1705,41 +1557,40 @@ const filterRemindersByDate = () => {
             )}
 
             {showRemindersModule && (
+
               <button
+
                 onClick={() => setActiveTab('recordatorios')}
+
                 className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
+
                   activeTab === 'recordatorios'
+
                     ? 'bg-orange-500 text-white'
+
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+
                 }`}
+
               >
+
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+
                 </svg>
+
                 Recordatorios
+
               </button>
+
             )}
-            {showBusinessModule && (
-                    >
-                <Store className="w-4 h-4 sm:w-5 sm:h-5" />
-                Negocios
-              </button>
-            )}
+
           </div>
+
         </div>
+
       </div>
-              <button
-                onClick={() => setActiveTab('negocios')}
-                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-t-lg font-semibold transition whitespace-nowrap text-xs sm:text-sm ${
-                  activeTab === 'negocios'
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <Store className="w-4 h-4 sm:w-5 sm:h-5" />
-                Negocios
-              </button>
-            )}
 
 
 
@@ -3258,13 +3109,18 @@ const filterRemindersByDate = () => {
 
                 )}
 
-             </div>
+              </div>
+
             </div>
+
           </>
-       ) : activeTab === 'negocios' && showBusinessModule ? (
-  <div>Módulo de negocios en construcción</div>
-) : null}
+
+        )}
+
       </div>
+
     </div>
+
   );
-}
+
+                                   }
