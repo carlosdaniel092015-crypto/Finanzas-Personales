@@ -3244,7 +3244,10 @@ const filterBusinessTransactionsByDate = () => {
 
           </>
 
-        
+          activeTab === 'recordatorios':
+
+        </div>
+          </>
         ) : activeTab === 'empresa' ? (
           <>
             {/* Módulo Empresarial */}
