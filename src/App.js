@@ -3249,7 +3249,252 @@ useEffect(() => {
 
           </>
         ) : activeTab === 'negocios' ? (
-          <>
+  <>
+    {/* Módulo de Negocios - Cierre de Caja */}
+    <div className="bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+      <div className="flex items-center gap-2 sm:gap-3 mb-2">
+        <DollarSign className="w-8 h-8 sm:w-10 sm:h-10" />
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold">Cierre de Caja</h2>
+          <p className="text-green-100 text-xs sm:text-sm">Control de Ingresos y Egresos del Negocio</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Filtros de Búsqueda */}
+    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <h3 className="text-base sm:text-lg font-bold text-gray-800">Filtros</h3>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => setBusinessDateFilter('dia')}
+            className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm flex-1 sm:flex-none ${
+              businessDateFilter === 'dia' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Día
+          </button>
+          <button
+            onClick={() => setBusinessDateFilter('mes')}
+            className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm flex-1 sm:flex-none ${
+              businessDateFilter === 'mes' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Mes
+          </button>
+          <button
+            onClick={() => setBusinessDateFilter('ano')}
+            className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm flex-1 sm:flex-none ${
+              businessDateFilter === 'ano' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Año
+          </button>
+          <input
+            type="date"
+            value={businessSelectedDate.toISOString().split('T')[0]}
+            onChange={(e) => setBusinessSelectedDate(new Date(e.target.value))}
+            className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm w-full sm:w-auto"
+          />
+        </div>
+      </div>
+      
+      <div>
+        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Buscar por Concepto</label>
+        <input
+          type="text"
+          value={businessSearchTerm}
+          onChange={(e) => setBusinessSearchTerm(e.target.value)}
+          placeholder="Escribe para buscar..."
+          className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
+        />
+      </div>
+    </div>
+
+    {/* Dashboard de Cierre de Caja */}
+    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+      <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">Dashboard</h3>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
+        {(() => {
+          const filtered = filterBusinessTransactions();
+          const ingresos = filtered.filter(t => t.type === 'ingreso');
+          const egresos = filtered.filter(t => t.type === 'egreso');
+          
+          const totalVentas = ingresos.filter(t => t.status === 'pagado').reduce((sum, t) => sum + t.amount, 0);
+          const totalGastos = egresos.filter(t => t.status === 'pagado').reduce((sum, t) => sum + t.amount, 0);
+          const balance = totalVentas - totalGastos;
+          const porCobrar = ingresos.filter(t => t.status === 'pendiente').reduce((sum, t) => sum + t.amount, 0);
+          const porPagar = egresos.filter(t => t.status === 'pendiente').reduce((sum, t) => sum + t.amount, 0);
+
+          return (
+            <>
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-lg p-3 sm:p-4">
+                <p className="text-blue-100 text-xs mb-1">Balance</p>
+                <p className={`text-lg sm:text-2xl font-bold ${balance >= 0 ? 'text-white' : 'text-red-200'}`}>
+                  ${formatCurrency(Math.abs(balance))}
+                </p>
+                <p className="text-blue-100 text-xs mt-1">{balance >= 0 ? 'Ganancia' : 'Pérdida'}</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-lg p-3 sm:p-4">
+                <p className="text-green-100 text-xs mb-1">Ventas Totales</p>
+                <p className="text-lg sm:text-2xl font-bold">${formatCurrency(totalVentas)}</p>
+                <p className="text-green-100 text-xs mt-1">{ingresos.filter(t => t.status === 'pagado').length} pagados</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg shadow-lg p-3 sm:p-4">
+                <p className="text-red-100 text-xs mb-1">Gastos Totales</p>
+                <p className="text-lg sm:text-2xl font-bold">${formatCurrency(totalGastos)}</p>
+                <p className="text-red-100 text-xs mt-1">{egresos.filter(t => t.status === 'pagado').length} pagados</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white rounded-lg shadow-lg p-3 sm:p-4">
+                <p className="text-yellow-100 text-xs mb-1">Por Cobrar</p>
+                <p className="text-lg sm:text-2xl font-bold">${formatCurrency(porCobrar)}</p>
+                <p className="text-yellow-100 text-xs mt-1">{ingresos.filter(t => t.status === 'pendiente').length} pendientes</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-lg shadow-lg p-3 sm:p-4">
+                <p className="text-orange-100 text-xs mb-1">Por Pagar</p>
+                <p className="text-lg sm:text-2xl font-bold">${formatCurrency(porPagar)}</p>
+                <p className="text-orange-100 text-xs mt-1">{egresos.filter(t => t.status === 'pendiente').length} pendientes</p>
+              </div>
+            </>
+          );
+        })()}
+      </div>
+    </div>
+
+    {/* Agregar Transacción */}
+    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Agregar Transacción</h2>
+      
+      <div className="flex gap-2 sm:gap-4 mb-4">
+        <button
+          onClick={() => setBusinessType('ingreso')}
+          className={`flex-1 py-2 sm:py-3 rounded-lg font-semibold transition text-sm sm:text-base ${
+            businessType === 'ingreso' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          Ingreso
+        </button>
+        <button
+          onClick={() => setBusinessType('egreso')}
+          className={`flex-1 py-2 sm:py-3 rounded-lg font-semibold transition text-sm sm:text-base ${
+            businessType === 'egreso' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          Egreso
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Concepto *</label>
+          <input
+            type="text"
+            value={businessConcept}
+            onChange={(e) => setBusinessConcept(e.target.value)}
+            placeholder="Ej: Venta de producto, Pago de servicio"
+            className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Monto *</label>
+          <input
+            type="text"
+            value={businessAmount}
+            onChange={(e) => handleBusinessAmountInput(e.target.value)}
+            placeholder="0.00"
+            className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
+          <select
+            value={businessPaymentMethod}
+            onChange={(e) => setBusinessPaymentMethod(e.target.value)}
+            className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
+          >
+            <option value="">Seleccionar</option>
+            {paymentMethods.map(method => (
+              <option key={method} value={method}>{method}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Estado</label>
+          <select
+            value={businessStatus}
+            onChange={(e) => setBusinessStatus(e.target.value)}
+            className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
+          >
+            <option value="pagado">Pagado</option>
+            <option value="pendiente">Pendiente</option>
+          </select>
+        </div>
+      </div>
+
+      <button
+        onClick={addBusinessTransaction}
+        className="w-full bg-green-600 text-white py-2 sm:py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2 text-sm sm:text-base"
+      >
+        <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+        Agregar Transacción
+      </button>
+    </div>
+
+    {/* Historial de Transacciones */}
+    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Historial de Transacciones</h2>
+      <div className="space-y-3">
+        {filterBusinessTransactions().length === 0 ? (
+          <p className="text-gray-500 text-center py-8 text-sm">No hay transacciones registradas</p>
+        ) : (
+          filterBusinessTransactions().map(transaction => (
+            <div
+              key={transaction.id}
+              className="border-2 border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-lg transition bg-gradient-to-r from-gray-50 to-white"
+            >
+              <div className="flex justify-between items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      transaction.type === 'ingreso' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {transaction.type === 'ingreso' ? 'Ingreso' : 'Egreso'}
+                    </span>
+                    <span className="font-bold text-sm sm:text-lg text-gray-800 truncate">{transaction.concept}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-2">
+                    <div>
+                      <span className="text-gray-600">Método:</span>
+                      <span className="font-semibold ml-1 sm:ml-2">{transaction.paymentMethod}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Estado:</span>
+                      <span className={`font-semibold ml-1 sm:ml-2 ${
+                        transaction.status === 'pagado' ? 'text-green-600' : 'text-yellow-600'
+                      }`}>
+                        {transaction.status === 'pagado' ? 'Pagado' : 'Pendiente'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-500">
+                    {new Date(transaction.createdAt.seconds * 1000).toLocaleString('es-ES', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </di
             {/* AQUÍ VA TODO EL CÓDIGO DEL MÓDULO DE NEGOCIOS */}
           </>
         )}  {/* ← Este cierra TODOS los módulos */}
